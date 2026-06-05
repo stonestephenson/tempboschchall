@@ -30,7 +30,7 @@ An example of execution times and network delays to be used for the Challenge is
 **Notes:**
 * One task set must be created for each vehicle, with the general goal of adding the highest number of vehicles `N_vehicles` that satisfy the control-related performance constraints.
 * Offsets, deadlines and scheduling policy needs to be defined by the user.
-* The remote plaform comprises `N_c = 3` processing cores.
+* The remote platform comprises `N_c = 3` processing cores.
 * A probabilistic execution time modelization for each task can be realized by mapping the best case, average and worst case execution times as a PERT distribution.
 * More complex variant: considering the Controller Task as an abstract implementation of an MPC --> multiply its execution time x10
 * All the values are given as examples: different values can be chosen and additional interfering tasks and network load can be added, with proper motivation.

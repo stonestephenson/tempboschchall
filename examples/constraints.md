@@ -14,6 +14,8 @@ Different solutions of the Challenge can be ranked by comparing the values obtai
 **Notes**
 * One set of performance monitors is defined for each vehicle.
 * The combined (or a subset of) measurements obtained from the performance monitors of all vehicles should drive the decisions of the scheduler at runtime.
-* The performance monitors are evaluated with a granularity of 10ms (in vehicle and in the remote platform). Thus, the Threshold Error Counter monitor counts how many iterations of 10ms the vehicle error is above the `ERROR_THRESHOLD` of 0.2 meters. As an example, for a 150 seconds simulation and a chance constraint of 5%, it means that the counter value should not exceed 750.
-* The constraints above should be evaluated on the "real" performance monitors. Nonetheless, the scheduler in the remote platform has access only to an estimate of the performance based on the transmitted data and estimated states from the Estimator task. Due to delays and/or skipped executions, there might be a mismatch between the real and estimated performance metrics.
+* The performance monitors are evaluated with a granularity of 10ms (in vehicle and in the remote platform). Thus, the Threshold Error Counter monitor counts how many iterations of 10ms the vehicle error is above the `ERROR_THRESHOLD` 
+* of 0.2 meters. As an example, for a 150 seconds simulation and a chance constraint of 5%, it means that the counter value should not exceed 750.
+* The constraints above should be evaluated on the "real" performance monitors. Nonetheless, the scheduler in the remote platform has access only to an estimate of the performance based on the transmitted data and estimated states from
+* the Estimator task. Due to delays and/or skipped executions, there might be a mismatch between the real and estimated performance metrics.
 * Additional performance constraints can be added by leveraging the FMU outputs.
