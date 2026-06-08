@@ -55,6 +55,10 @@ public:
 
     // Total jobs that missed their deadline (were dropped). Optional diagnostic.
     virtual long missedJobs() const { return 0; }
+
+    // Worst-case end-to-end data age observed for `vehicle`, in base ticks; -1
+    // if this scheduler does not track it. Optional diagnostic.
+    virtual long maxDataAgeTicks(int /*vehicle*/) const { return -1; }
 };
 
 }  // namespace cps

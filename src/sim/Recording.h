@@ -33,6 +33,7 @@ struct VehicleSummary {
     int    threshold_cntr_real = 0;
     double soft_violation_pct  = 0.0;  // % of run with |e_y| over soft bound
     int    hard_violations     = 0;    // recorded frames with |e_y| over hard bound
+    double max_data_age_ms     = -1.0; // worst-case end-to-end data age; -1 = none
 };
 
 struct RunRecording {

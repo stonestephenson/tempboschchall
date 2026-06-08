@@ -8,7 +8,7 @@ namespace cps {
 namespace {
 
 constexpr char    kMagic[4] = {'C', 'P', 'S', 'R'};
-constexpr int32_t kVersion  = 1;
+constexpr int32_t kVersion  = 2;  // v2: VehicleSummary.max_data_age_ms
 
 template <typename T>
 void put(std::ostream& os, const T& v) {

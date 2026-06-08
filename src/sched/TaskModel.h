@@ -65,6 +65,13 @@ struct ReadyJob {
     bool     started;         // already activated (running) vs just released
 };
 
+// A delayed network packet in flight: the tick it will arrive, plus the
+// data-age stamp it carries (the sensor-sample tick of the data inside it).
+struct NetPacket {
+    long arriveStep;
+    long stamp;
+};
+
 // Per-vehicle discrete-event chain model. Driven each tick in three phases:
 //   beginTick()  -> release jobs, auto-run in-vehicle tasks & networks, list
 //                   this vehicle's ready cloud jobs.
@@ -80,6 +87,9 @@ public:
 
     int vehicleId() const { return vehicleId_; }
     long missedJobs() const { return missed_; }
+    // Worst-case end-to-end data age observed over the run, in base ticks
+    // (-1 if no actuation has propagated yet). See endTick for the definition.
+    long maxDataAgeTicks() const { return maxAgeTicks_; }
 
     // State machine for a single periodic task (public so the tick-advance
     // helper in TaskModel.cpp can operate on it).
@@ -109,9 +119,20 @@ private:
     Job sensor_, estimator_, controller_, feedforward_, merger_, actuator_;
     NetworkParams netSC_, netCA_;
 
-    // Pending network "receive" events (tick at which the delayed packet lands).
-    std::vector<long> scReceiveAt_;
-    std::vector<long> caReceiveAt_;
+    // Pending network "receive" events (arrival tick + carried data-age stamp).
+    std::vector<NetPacket> scReceiveAt_;
+    std::vector<NetPacket> caReceiveAt_;
+
+    // --- Data-age provenance stamps (see endTick). Each holds the sim tick of
+    //     the sensor sample underlying that buffer's current data; -1 = none. ---
+    long sensCompStamp_ = -1, sensOutStamp_ = -1;  // sensor sample / published
+    long scRecStamp_    = -1;                       // received sensor packet
+    long estCompStamp_  = -1, estOutStamp_  = -1;   // estimator
+    long fbCompStamp_   = -1, fbOutStamp_   = -1;   // controller feedback
+    long aggCompStamp_  = -1, aggOutStamp_  = -1;   // merger (freshest-wins)
+    long caRecStamp_    = -1;                        // received command packet
+    long actInStamp_    = -1, actOutStamp_  = -1;   // actuator in / applied
+    long maxAgeTicks_   = -1;                        // worst-case age over run
 
     Job& job(TaskKind k);
 };

@@ -23,6 +23,7 @@ public:
     const char* name() const override { return name_.c_str(); }
 
     long missedJobs() const override;
+    long maxDataAgeTicks(int vehicle) const override;
 
 private:
     std::unique_ptr<CorePolicy>  policy_;

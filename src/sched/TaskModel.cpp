@@ -183,43 +183,103 @@ bool advance(TaskChainModel::Job& j, bool& actFlag, bool& finFlag) {
     return false;
 }
 
-// Deliver at most one due packet (earliest scheduled arrival <= step).
-bool fireDue(std::vector<long>& q, long step) {
+// Deliver at most one due packet (earliest scheduled arrival <= step). On
+// delivery, also returns the data-age stamp that packet was carrying.
+bool fireDue(std::vector<NetPacket>& q, long step, long& stampOut) {
     int best = -1;
     long bestv = std::numeric_limits<long>::max();
     for (int i = 0; i < static_cast<int>(q.size()); ++i)
-        if (q[i] <= step && q[i] < bestv) { bestv = q[i]; best = i; }
-    if (best >= 0) { q.erase(q.begin() + best); return true; }
+        if (q[i].arriveStep <= step && q[i].arriveStep < bestv) { bestv = q[i].arriveStep; best = i; }
+    if (best >= 0) { stampOut = q[best].stamp; q.erase(q.begin() + best); return true; }
     return false;
 }
+
+// Freshest (most recent) of two data-age stamps. Valid stamps are >= 0, so a
+// plain max() ignores a -1 ("no data") unless both inputs are -1.
+long freshest(long a, long b) { return a > b ? a : b; }
 }  // namespace
 
 void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     out.clear();
 
-    // In-vehicle tasks run as soon as released (their own per-vehicle resource).
-    if (advance(sensor_, out.sensor_act, out.sensor_fin)) {
+    // ------------------------------------------------------------------ //
+    // Data-age provenance tracking.
+    //
+    // Alongside the trigger generation below we carry a parallel "stamp" for
+    // every data buffer the FMU owns (see process_trigger_events in
+    // LateralMotionControl.c). A stamp is the sim tick at which the SENSOR
+    // SAMPLE underlying that buffer's current data was taken. We do not
+    // evaluate any latency formula -- the stamp rides the exact trigger events
+    // this scheduler emits, so it accrues the run's real core contention and
+    // sampled network delays, and we read the age off it at actuation.
+    //
+    // Convention (this IS the quantity the proven bound is defined against):
+    //   * data age = current tick - tick the contributing sensor sample fired;
+    //   * FEEDFORWARD is excluded: it carries the reference trajectory, not
+    //     sensor data, so it propagates no stamp;
+    //   * at the MERGER, FRESHEST-WINS among the sensor-derived inputs (the
+    //     controller-feedback path and the merger's own direct estimator read).
+    //
+    // The FMU performs every receive/publish (its "finish" pass) before every
+    // sample/compute/send (its "activate" pass) within one doStep, so we apply
+    // stamp updates in that same order. Network receives are therefore done
+    // first -- which is also behaviour-preserving for the triggers: a packet
+    // pushed this tick arrives >= 1 tick later, so it can never be due this
+    // tick, and pulling fireDue earlier delivers exactly the same packets.
+    // ------------------------------------------------------------------ //
+
+    // ---- Finish/receive pass: deliver due network packets first. ----
+    long recvStamp = -1;
+    if (fireDue(scReceiveAt_, step, recvStamp)) { out.net_sc_recv = true; scRecStamp_ = recvStamp; }
+    if (fireDue(caReceiveAt_, step, recvStamp)) { out.net_ca_recv = true; caRecStamp_ = recvStamp; }
+
+    // ---- In-vehicle Sensor: runs as soon as released. ----
+    const bool sensorFinished = advance(sensor_, out.sensor_act, out.sensor_fin);
+    if (out.sensor_act) sensCompStamp_ = step;            // sensor samples physical state now
+    if (out.sensor_fin) sensOutStamp_  = sensCompStamp_;  // publish the sampled value
+    if (sensorFinished) {
         out.net_sc_sent = true;
-        scReceiveAt_.push_back(step + sampleDelayTicks(netSC_.delay));
+        scReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netSC_.delay), sensOutStamp_});
     }
 
-    // Cloud tasks advance only if the policy granted them a core this tick.
-    if (estimator_.grantedThisTick)   advance(estimator_,   out.est_act,   out.est_fin);
-    if (controller_.grantedThisTick)  advance(controller_,  out.ctrl_act,  out.ctrl_fin);
-    if (feedforward_.grantedThisTick) advance(feedforward_, out.ff_act,    out.ff_fin);
+    // ---- Cloud tasks: advance only if the policy granted a core this tick. ----
+    if (estimator_.grantedThisTick) {
+        advance(estimator_, out.est_act, out.est_fin);
+        if (out.est_act) estCompStamp_ = scRecStamp_;     // reads received sensor data
+        if (out.est_fin) estOutStamp_  = estCompStamp_;
+    }
+    if (controller_.grantedThisTick) {
+        advance(controller_, out.ctrl_act, out.ctrl_fin);
+        if (out.ctrl_act) fbCompStamp_ = estOutStamp_;    // reads estimator output
+        if (out.ctrl_fin) fbOutStamp_  = fbCompStamp_;
+    }
+    if (feedforward_.grantedThisTick) {
+        advance(feedforward_, out.ff_act, out.ff_fin);
+        // Feedforward carries the reference, not sensor data -> no stamp (excluded).
+    }
     bool mergerFinished = false;
-    if (merger_.grantedThisTick)
+    if (merger_.grantedThisTick) {
         mergerFinished = advance(merger_, out.merge_act, out.merge_fin);
+        if (out.merge_act) aggCompStamp_ = freshest(fbOutStamp_, estOutStamp_);  // freshest-wins
+        if (out.merge_fin) aggOutStamp_  = aggCompStamp_;
+    }
     if (mergerFinished) {
         out.net_ca_sent = true;
-        caReceiveAt_.push_back(step + sampleDelayTicks(netCA_.delay));
+        caReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netCA_.delay), aggOutStamp_});
     }
 
+    // ---- In-vehicle Actuator. ----
     advance(actuator_, out.act_act, out.act_fin);
+    if (out.act_act) actInStamp_  = caRecStamp_;          // reads received command
+    if (out.act_fin) actOutStamp_ = actInStamp_;          // command becomes the applied output
 
-    // Deliver any due network packets.
-    out.net_sc_recv = fireDue(scReceiveAt_, step);
-    out.net_ca_recv = fireDue(caReceiveAt_, step);
+    // ---- Hold-time age sample: age of the CURRENTLY-APPLIED command, taken
+    //      every tick (not only when a fresh command latches) and maxed over
+    //      the whole run, so a command held stale between updates is counted. ----
+    if (actOutStamp_ >= 0) {
+        const long age = step - actOutStamp_;
+        if (age > maxAgeTicks_) maxAgeTicks_ = age;
+    }
 }
 
 }  // namespace cps

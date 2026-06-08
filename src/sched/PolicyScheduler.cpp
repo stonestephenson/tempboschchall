@@ -46,4 +46,9 @@ long PolicyScheduler::missedJobs() const {
     return total;
 }
 
+long PolicyScheduler::maxDataAgeTicks(int vehicle) const {
+    if (vehicle < 0 || vehicle >= static_cast<int>(models_.size())) return -1;
+    return models_[vehicle].maxDataAgeTicks();
+}
+
 }  // namespace cps
