@@ -1,6 +1,12 @@
 // RateMonotonic.cpp — classic rate-monotonic core arbitration (Challenge Q1
-// baseline). Shorter period == higher priority; among equal periods, prefer
-// jobs already running (less preemption churn), then lower vehicle id.
+// baseline). Priorities are the strict total order (period, vehicle, kind):
+// shorter period first, ties by vehicle id (matching the Challenge's Q1
+// exemplar — each additional vehicle at lower priority, so overload degrades
+// per vehicle instead of starving a whole stage class), then chain order
+// (Controller < Feedforward < Merger) within a vehicle. Each vehicle has at
+// most one ready job per kind, so this key is unique — the schedule is a pure
+// static per-task fixed-priority order, exactly the model the response-time
+// analysis in BOUND.md §7 assumes, and identical on every STL implementation.
 #include <algorithm>
 #include <vector>
 
@@ -21,8 +27,8 @@ public:
             const ReadyJob& x = ready[a];
             const ReadyJob& y = ready[b];
             if (x.period_ms != y.period_ms) return x.period_ms < y.period_ms;
-            if (x.started != y.started)     return x.started;  // keep running jobs
-            return x.vehicle < y.vehicle;
+            if (x.vehicle != y.vehicle)     return x.vehicle < y.vehicle;
+            return x.kind < y.kind;
         });
 
         const int n = std::min<int>(nCores, static_cast<int>(order_.size()));

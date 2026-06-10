@@ -72,13 +72,37 @@ at the merger; hold time included.
    (EE-student track). Phase 1a needs a tiny `--net-delay MS` flag (not yet
    implemented).
 
+## Also done (second commit batch, same day)
+8. **`--net-delay MS`** (fixes both network delays; CSV gained a net_delay_ms
+   column). Validation: N=1/worst at delay 4 → 65.5 ms vs linear prediction
+   66.5 — the 1.0 ms residual is phasing quantization (BOUND.md work item 2).
+9. **Deterministic strict priority order (period, vehicle, kind)** in
+   RM/EDF/PRM/Context tie-breaks: reproducible across STLs and *exactly* the
+   FP model the new RTA (BOUND.md §7) analyzes. Vehicle-major chosen to match
+   the Challenge's Q1 exemplar; a stage-major (kind-first) trial starved the
+   entire Merger class at 12 veh (every chain dead) — kept as a finding, see
+   BOUND.md §7.1.
+10. **BOUND.md §7**: tick-quantum global FP RTA (exact per-tick interference
+   argument), preliminary hand-iterated R_i at N=6/worst (all ≤ T ⇒ P1
+   certified), per-vehicle bound instantiation: veh 5 167.2 vs measured 100.5
+   (1.66×), veh 0 131.6 vs 110.5 (1.19×). Hand numbers need machine solving.
+
+## Re-baselined numbers (vehicle-major order; worst exec, RM)
+- N=1: 90.5 / 90.5 (fresh/path) — unchanged. With `--net-delay 4`: 65.5.
+- N=6: fresh 90.5 / path 100.5, missed 0, veh 3 = 0.50700 / 13.43% (matches
+  the original pre-tie-break baselines — the old libc++ order happened to act
+  vehicle-major).
+- 12 veh kill: veh 10–11 never actuate (n/a), identical to original baseline.
+- 12 veh skip: **all 12 chains alive** (0 n/a), worst path age 505.5 ms.
+
 ## Open next-steps
-1. **Kurt review of BOUND.md** (Lemma 1 pairing + hold-term composition are the
-   delicate steps), then W2: real global-RM/EDF RTA for R_i + offset/harmonic
-   sampling-term tightening (Li et al. RTSS'24 Δ-quantization).
-2. **`--net-delay MS` flag** for ZONE_TOLERANCE.md Phase 1 (~15 lines).
-3. Sweep automation over the new CSV (CS-student track).
-4. (Optional) plumb `in_local_platform` metrics (VR 1025/1028/1031/1034/1037) if
+1. **Kurt review of BOUND.md** (Lemma 1 pairing, hold-term composition, §7.2
+   workload bound for the discrete model).
+2. Machine-solve the §7 fixed points + sweep N for the certified-capacity
+   number (CS-student script; also general CSV sweep automation).
+3. EE student: ZONE_TOLERANCE.md Phase 1 (unblocked — `--net-delay` exists).
+4. Offset/harmonic-aware sampling terms + limited carry-in (after 1–2).
+5. (Optional) plumb `in_local_platform` metrics (VR 1025/1028/1031/1034/1037) if
    vehicle-side decisions are wanted; currently unread.
 
 ## Run / verify

@@ -40,9 +40,13 @@ The executable is `build/cps`.
 
 Key options: `--scheduler rm|prm|edf|context|honest`, `--vehicles N`, `--cores N`,
 `--profile 10|12.5|15`, `--duration SEC`, `--exec avg|worst|best|pert`,
-`--overrun kill|skip`, `--seed N`, `--headless`, `--csv FILE` (append
+`--overrun kill|skip`, `--net-delay MS` (fix both network delays, for
+delay-tolerance sweeps), `--seed N`, `--headless`, `--csv FILE` (append
 per-vehicle summary rows for sweeps), `--save FILE`, `--replay FILE`,
 `--screenshot FILE`. Run `./build/cps --help` for the full list.
+
+Fixed-priority policies use the strict total order (period, vehicle, kind) —
+deterministic across platforms and exactly the model BOUND.md §7 analyzes.
 
 Scheduler notes: `context` scores on ground-truth metrics (an **oracle** upper
 bound); `honest` is the same scoring restricted to the estimator-derived remote

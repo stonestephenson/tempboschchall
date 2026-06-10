@@ -23,8 +23,8 @@ public:
 
         auto better = [&](const ReadyJob& x, const ReadyJob& y) {
             if (x.period_ms != y.period_ms) return x.period_ms < y.period_ms;
-            if (x.started != y.started)     return x.started;
-            return x.vehicle < y.vehicle;
+            if (x.vehicle != y.vehicle)     return x.vehicle < y.vehicle;
+            return x.kind < y.kind;
         };
 
         for (int i = 0; i < static_cast<int>(ready.size()); ++i) {

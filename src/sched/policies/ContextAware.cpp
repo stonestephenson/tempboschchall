@@ -52,11 +52,12 @@ public:
             const double ua = urgency(ready[a]);
             const double ub = urgency(ready[b]);
             if (ua != ub) return ua > ub;  // most-suffering vehicle first
-            // Tie-break: rate-monotonic, then running jobs, then vehicle id.
+            // Tie-break: the same strict (period, vehicle, kind) order as RM.
             if (ready[a].period_ms != ready[b].period_ms)
                 return ready[a].period_ms < ready[b].period_ms;
-            if (ready[a].started != ready[b].started) return ready[a].started;
-            return ready[a].vehicle < ready[b].vehicle;
+            if (ready[a].vehicle != ready[b].vehicle)
+                return ready[a].vehicle < ready[b].vehicle;
+            return ready[a].kind < ready[b].kind;
         });
 
         const int n = std::min<int>(nCores, static_cast<int>(order_.size()));

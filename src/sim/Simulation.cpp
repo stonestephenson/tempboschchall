@@ -41,6 +41,11 @@ void Simulation::start() {
         veh.taskSet.execMode = params_.execMode;
         veh.taskSet.overrun  = params_.overrun;
         veh.taskSet.seed = params_.seed;
+        if (params_.netDelayMs >= 0.0) {
+            const ExecTimes fixed{params_.netDelayMs, params_.netDelayMs, params_.netDelayMs};
+            veh.taskSet.netSC.delay = fixed;
+            veh.taskSet.netCA.delay = fixed;
+        }
         taskSets[v] = veh.taskSet;
 
         veh.fmu = lib_->instantiate("veh" + std::to_string(v));

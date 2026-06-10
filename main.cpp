@@ -61,24 +61,25 @@ OverrunPolicy parseOverrun(const std::string& s) {
 
 // Append the run's per-vehicle summary to a CSV (header written if the file is
 // new/empty), so parameter sweeps can be aggregated across invocations.
+// net_delay_ms is the --net-delay override; -1 = challenge default delays.
 void appendCsv(const std::string& path, const RunRecording& rec,
                const std::string& scheduler, const std::string& exec,
-               const std::string& overrun, uint64_t seed) {
+               const std::string& overrun, double netDelayMs, uint64_t seed) {
     std::FILE* f = std::fopen(path.c_str(), "a");
     if (!f) {
         std::fprintf(stderr, "Warning: cannot open CSV file %s\n", path.c_str());
         return;
     }
     if (std::ftell(f) == 0)
-        std::fprintf(f, "scheduler,profile,vehicles,cores,exec,overrun,seed,duration_s,"
-                        "missed_jobs,veh,avg_perf,max_roll,soft_pct,hard,"
+        std::fprintf(f, "scheduler,profile,vehicles,cores,exec,overrun,net_delay_ms,seed,"
+                        "duration_s,missed_jobs,veh,avg_perf,max_roll,soft_pct,hard,"
                         "max_age_fresh_ms,max_age_path_ms\n");
     for (int v = 0; v < rec.nVehicles; ++v) {
         const VehicleSummary& s = rec.summary[v];
-        std::fprintf(f, "%s,%s,%d,%d,%s,%s,%llu,%.3f,%ld,%d,%.6f,%.6f,%.4f,%d,%.2f,%.2f\n",
+        std::fprintf(f, "%s,%s,%d,%d,%s,%s,%.2f,%llu,%.3f,%ld,%d,%.6f,%.6f,%.4f,%d,%.2f,%.2f\n",
                      scheduler.c_str(), profileName(static_cast<Profile>(rec.profile)),
                      rec.nVehicles, rec.nCores, exec.c_str(), overrun.c_str(),
-                     static_cast<unsigned long long>(seed), rec.duration(),
+                     netDelayMs, static_cast<unsigned long long>(seed), rec.duration(),
                      rec.missedJobs, v, s.average_real, s.max_rolling_real,
                      s.soft_violation_pct, s.hard_violations,
                      s.max_data_age_ms, s.max_data_age_oldest_ms);
@@ -109,6 +110,8 @@ void usage() {
         "  --exec avg|worst|best|pert   execution-time model (default avg)\n"
         "  --overrun kill|skip          job overrun policy (default kill = kill-and-hold;\n"
         "                               skip = overrunning job finishes, releases skipped)\n"
+        "  --net-delay MS               fix BOTH network delays to MS (overrides --exec\n"
+        "                               for the networks; for delay-tolerance sweeps)\n"
         "  --seed N                     RNG seed for pert mode (default 0)\n"
         "  --headless                   run without the GUI, print metrics\n"
         "  --csv FILE                   append per-vehicle summary rows to FILE\n"
@@ -149,6 +152,7 @@ int main(int argc, char** argv) {
         const std::string overrunName = argValue(argc, argv, "--overrun", "kill");
         params.execMode      = parseExec(execName);
         params.overrun       = parseOverrun(overrunName);
+        params.netDelayMs    = std::atof(argValue(argc, argv, "--net-delay", "-1"));
         params.seed          = static_cast<uint64_t>(std::atoll(argValue(argc, argv, "--seed", "0")));
         const double durSec  = std::atof(argValue(argc, argv, "--duration", "0"));
         if (durSec > 0) params.durationSteps =
@@ -168,7 +172,7 @@ int main(int argc, char** argv) {
             sim.runToCompletion(true);
             if (!csvFile.empty())
                 appendCsv(csvFile, sim.recording(), schedName, execName, overrunName,
-                          params.seed);
+                          params.netDelayMs, params.seed);
             if (!saveFile.empty()) {
                 sim.recording().save(saveFile);
                 std::printf("Saved recording to %s\n", saveFile.c_str());

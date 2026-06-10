@@ -1,5 +1,7 @@
 // Edf.cpp — earliest-deadline-first core arbitration across all vehicles'
-// ready cloud jobs. Deadline == release + period.
+// ready cloud jobs. Deadline == release + period. Deadline ties are broken by
+// the same strict (kind, vehicle) order as RateMonotonic, so the schedule is
+// fully deterministic across STL implementations.
 #include <algorithm>
 #include <vector>
 
@@ -20,8 +22,8 @@ public:
             const ReadyJob& x = ready[a];
             const ReadyJob& y = ready[b];
             if (x.deadlineStep != y.deadlineStep) return x.deadlineStep < y.deadlineStep;
-            if (x.started != y.started)           return x.started;
-            return x.vehicle < y.vehicle;
+            if (x.vehicle != y.vehicle)           return x.vehicle < y.vehicle;
+            return x.kind < y.kind;
         });
 
         const int n = std::min<int>(nCores, static_cast<int>(order_.size()));

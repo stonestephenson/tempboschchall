@@ -176,7 +176,7 @@ matters more than sharpening R.
    evaluate it until the RTA exists) or an actuator with a longer period.
    Re-run this experiment after work items 1–2 land.
 
-## 6. Relation between the two measured conventions
+## 6. Relation between the two measured conventions (see §7 for R_i)
 
 At the merger, fb_psi_dot_out was computed from an *earlier* read of
 est_states_out, and register stamps are monotone under P2. Hence
@@ -188,3 +188,101 @@ stamp_fb ≤ stamp_est always, so:
 
 Measured (6 veh, RM, worst): freshest 90.5 / path 100.5 — skew = 10 ms ≤
 T_B + R_B as expected. ✓
+
+---
+
+## 7. Response-time analysis for the tick-quantum global model (W2, draft)
+
+Status: **framework + preliminary hand-iterated numbers. The fixed points must
+be machine-solved (CS-student script) and the lemma adapted-from-literature
+re-derived (Kurt) before use.**
+
+### 7.1 Why the implementation now matches an analyzable model
+
+As of the tie-break change, every fixed-priority policy uses the strict total
+order **(period, vehicle, kind)** — vehicle-major within a period tier,
+matching the Challenge's own Q1 exemplar ("each additional vehicle's tasks at
+lower priority"), with the within-vehicle chain order Controller < Feedforward
+< Merger. Since each vehicle has at most one ready job per kind, this key is
+unique: the scheduler realizes a **static per-task fixed-priority order**,
+identical on every STL implementation. FP response-time analysis applies
+*exactly* to what runs — no tie nondeterminism to over-approximate.
+
+(Empirical aside that motivated the choice: a stage-major order
+(period, **kind**, vehicle) was tried first. At 12 vehicles under kill-and-hold
+it starved the entire Merger class — *every* vehicle's chain died, including
+vehicle 0's. Vehicle-major degrades per vehicle instead: vehicles 10–11 die,
+0–9 keep driving. Priority *structure*, not just priority *assignment*, governs
+the overload mode — a finding in itself, and the hook for Audsley/Li-style
+priority optimization as future work.)
+
+### 7.2 Model and the interference argument
+
+Discrete time, unit quanta, m identical cores, free migration/preemption: each
+tick, the m highest-priority ready jobs advance one tick. For task k with the
+higher-priority set hp(k) fixed by the total order:
+
+A tick in which J_k is ready but not served has all m cores serving hp(k) work
+(strictly: jobs above k; with the total order this is exactly hp(k)). So if x
+is J_k's response time, the hp work executed inside its window is ≥
+m · (x − C_k), giving the standard fixed point — which in this discrete model
+is **exact per tick** (no fractional-quantum slop, a small rigor win over
+continuous-time global RTA):
+
+```
+x = C_k + floor( (1/m) · Σ_{i ∈ hp(k)} W_i(x) )
+```
+
+with the workload bound (carry-in/jitter form; R_i from higher-priority tasks,
+solved in priority order):
+
+```
+W_i(x) = ceil( (x + R_i − C_i) / T_i ) · C_i
+```
+
+Refinement to bring in after the basic version is verified: limited carry-in
+(only m − 1 tasks can carry in — Guan-style RTA-LC), which §7.3's numbers do
+NOT yet use except where noted.
+
+The same computation certifies **P1** (no overruns): if x_k ≤ T_k for all k,
+the kill-and-hold path is never taken, and the bound of §4 applies.
+
+### 7.3 Preliminary numbers — N = 6, m = 3, worst exec (hand-iterated)
+
+Ticks (0.1 ms): C_E = 11, C_B = 5, C_F = 25, C_M = 5; T_E = 100, T_20 = 200.
+Priority: all E's (by vehicle), then vehicle blocks [B_v, F_v, M_v].
+
+| task | hp set | R (ticks) | R (ms) |
+|---|---|---|---|
+| E_0 | ∅ | 11 | 1.1 |
+| E_5 | 5 E's | 29 | 2.9 |
+| B_0 | 6 E's | 27 | 2.7 |
+| F_0 | 6E + B_0 | 48 | 4.8 |
+| M_0 | 6E + B_0 + F_0 | 37 | 3.7 |
+| B_5 | 6E + 15 band-20 | 107 | 10.7 |
+| F_5 | + B_5 | 129 | 12.9 |
+| M_5 | + F_5 | 117 | 11.7 |
+
+All ≤ T ⇒ **P1 certified at N = 6 / worst** (preliminary). Instantiating §4's
+theorem per vehicle:
+
+- vehicle 5 (worst R's): 22.0 + 14.7 + 40.9 + 58.9 + 30.7 ≈ **167.2 ms**
+  vs measured path age 100.5 → 1.66×.
+- vehicle 0 (best R's): ≈ **131.6 ms** vs measured 110.5 → 1.19×.
+
+Hold-free check (§5.4): 167.2 − 30 = 137.2 > 100.5 — still not refuted with
+true-R; the refutation experiment needs higher load or a longer actuator
+period, as predicted.
+
+### 7.4 Open items
+
+1. Machine-solve the fixed points (script over the CSV configs; also sweep N
+   until some x_k > T_k — that N is the *certified* capacity, vs the larger
+   empirical capacity: the certification gap is a headline number for Q1).
+2. Re-derive the workload bound for the discrete synchronized-quantum model
+   rather than citing continuous-time sporadic results (Kurt).
+3. Limited carry-in (m−1) refinement, then offset/harmonic-aware sampling
+   terms in §4 (these two interact; do them together).
+4. Priority-order optimization over `kind` rank within a vehicle (the B→M
+   handoff phasing is age-relevant: the stage-major experiment showed ±10 ms
+   on path age at N=6 from tie structure alone).

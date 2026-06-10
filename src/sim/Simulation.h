@@ -29,6 +29,10 @@ struct SimParams {
     std::vector<long> startOffsets;  // empty -> spread vehicles evenly around lap
     ExecMode execMode      = ExecMode::Average;
     OverrunPolicy overrun  = OverrunPolicy::KillAndHold;
+    // If >= 0, override BOTH network delays with this fixed value (ms),
+    // regardless of execMode (which then governs task execution times only).
+    // For the zone-tolerance delay sweeps (ZONE_TOLERANCE.md).
+    double   netDelayMs    = -1.0;
     uint64_t seed          = 0;
 };
 
