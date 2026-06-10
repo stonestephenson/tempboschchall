@@ -58,6 +58,7 @@ TaskChainModel::TaskChainModel(int vehicleId, const TaskSet& ts, double baseStep
     : vehicleId_(vehicleId),
       dtMs_(baseStepSeconds * 1000.0),
       execMode_(ts.execMode),
+      overrun_(ts.overrun),
       rng_(ts.seed ^ (static_cast<uint64_t>(vehicleId) * 0x9E3779B97F4A7C15ull)),
       netSC_(ts.netSC),
       netCA_(ts.netCA) {
@@ -132,14 +133,24 @@ TaskChainModel::Job& TaskChainModel::job(TaskKind k) {
 }
 
 void TaskChainModel::releaseIfDue(Job& j, long step) {
-    if (step >= j.nextRelease) {
-        if (j.active) ++missed_;  // previous job never finished -> deadline miss, dropped
-        j.active = true;
-        j.started = false;
-        j.ranTicks = 0;
-        j.execTicks = sampleExecTicks(j.params.exec);
-        j.nextRelease += j.period;
+    if (step < j.nextRelease) return;
+    if (j.active) {
+        ++missed_;  // previous job still unfinished at its implicit deadline
+        if (overrun_ == OverrunPolicy::SkipNext) {
+            // The overrunning job keeps its progress and runs to completion;
+            // this release is skipped entirely.
+            j.nextRelease += j.period;
+            return;
+        }
+        // KillAndHold: drop the unfinished job (it never publishes, so the
+        // output register holds the last published value) and release the
+        // next job on schedule.
     }
+    j.active = true;
+    j.started = false;
+    j.ranTicks = 0;
+    j.execTicks = sampleExecTicks(j.params.exec);
+    j.nextRelease += j.period;
 }
 
 void TaskChainModel::beginTick(long step, std::vector<ReadyJob>& readyOut) {
@@ -184,19 +195,33 @@ bool advance(TaskChainModel::Job& j, bool& actFlag, bool& finFlag) {
 }
 
 // Deliver at most one due packet (earliest scheduled arrival <= step). On
-// delivery, also returns the data-age stamp that packet was carrying.
-bool fireDue(std::vector<NetPacket>& q, long step, long& stampOut) {
+// delivery, also returns the data-age stamps that packet was carrying.
+bool fireDue(std::vector<NetPacket>& q, long step, long& stampOut, long& stampOldOut) {
     int best = -1;
     long bestv = std::numeric_limits<long>::max();
     for (int i = 0; i < static_cast<int>(q.size()); ++i)
         if (q[i].arriveStep <= step && q[i].arriveStep < bestv) { bestv = q[i].arriveStep; best = i; }
-    if (best >= 0) { stampOut = q[best].stamp; q.erase(q.begin() + best); return true; }
+    if (best >= 0) {
+        stampOut = q[best].stamp;
+        stampOldOut = q[best].stampOld;
+        q.erase(q.begin() + best);
+        return true;
+    }
     return false;
 }
 
 // Freshest (most recent) of two data-age stamps. Valid stamps are >= 0, so a
 // plain max() ignores a -1 ("no data") unless both inputs are -1.
 long freshest(long a, long b) { return a > b ? a : b; }
+
+// Oldest of the stamps that are actually present (>= 0). An input that has
+// never carried sensor data (-1) imposes no lineage, so it is skipped rather
+// than dragging the result to -1.
+long oldestValid(long a, long b) {
+    if (a < 0) return b;
+    if (b < 0) return a;
+    return a < b ? a : b;
+}
 }  // namespace
 
 void TaskChainModel::endTick(long step, VehicleTriggers& out) {
@@ -213,12 +238,24 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     // this scheduler emits, so it accrues the run's real core contention and
     // sampled network delays, and we read the age off it at actuation.
     //
-    // Convention (this IS the quantity the proven bound is defined against):
+    // Conventions (these ARE the quantities the proven bound is defined
+    // against). Two are tracked in parallel; they differ only at the merger,
+    // where the command has two sensor-derived direct inputs (the controller
+    // feedback fb_psi_dot_out and the merger's own read of est_states_out):
     //   * data age = current tick - tick the contributing sensor sample fired;
-    //   * FEEDFORWARD is excluded: it carries the reference trajectory, not
-    //     sensor data, so it propagates no stamp;
-    //   * at the MERGER, FRESHEST-WINS among the sensor-derived inputs (the
-    //     controller-feedback path and the merger's own direct estimator read).
+    //   * FEEDFORWARD is excluded under both: it carries the reference
+    //     trajectory, not sensor data, so it propagates no stamp;
+    //   * FRESHEST-CONTRIBUTING (`stamp`): newest sample in the lineage =
+    //     multipath reaction latency. Because est_states_out can only be
+    //     fresher than the feedback computed from an earlier read of it, this
+    //     equals the S->E->M->A shortcut lineage.
+    //   * OLDEST-DIRECT-INPUT (`stampOld`): oldest sample among the present
+    //     direct register inputs (no recursion through the estimator's filter
+    //     memory, which would be unbounded). By the same monotonicity this
+    //     equals the S->E->B->M->A path age under FIFO delivery -- the
+    //     classical cause-effect-chain quantity the analytical bound targets,
+    //     and the hypothesis a control-side guarantee needs ("ALL sensor
+    //     inputs to the command are at most A old").
     //
     // The FMU performs every receive/publish (its "finish" pass) before every
     // sample/compute/send (its "activate" pass) within one doStep, so we apply
@@ -229,9 +266,16 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     // ------------------------------------------------------------------ //
 
     // ---- Finish/receive pass: deliver due network packets first. ----
-    long recvStamp = -1;
-    if (fireDue(scReceiveAt_, step, recvStamp)) { out.net_sc_recv = true; scRecStamp_ = recvStamp; }
-    if (fireDue(caReceiveAt_, step, recvStamp)) { out.net_ca_recv = true; caRecStamp_ = recvStamp; }
+    long recvStamp = -1, recvStampOld = -1;
+    if (fireDue(scReceiveAt_, step, recvStamp, recvStampOld)) {
+        out.net_sc_recv = true;
+        scRecStamp_ = recvStamp;  // pre-merger: both conventions coincide
+    }
+    if (fireDue(caReceiveAt_, step, recvStamp, recvStampOld)) {
+        out.net_ca_recv = true;
+        caRecStamp_ = recvStamp;
+        caRecOldStamp_ = recvStampOld;
+    }
 
     // ---- In-vehicle Sensor: runs as soon as released. ----
     const bool sensorFinished = advance(sensor_, out.sensor_act, out.sensor_fin);
@@ -239,7 +283,8 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     if (out.sensor_fin) sensOutStamp_  = sensCompStamp_;  // publish the sampled value
     if (sensorFinished) {
         out.net_sc_sent = true;
-        scReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netSC_.delay), sensOutStamp_});
+        scReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netSC_.delay),
+                                         sensOutStamp_, sensOutStamp_});
     }
 
     // ---- Cloud tasks: advance only if the policy granted a core this tick. ----
@@ -260,18 +305,31 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     bool mergerFinished = false;
     if (merger_.grantedThisTick) {
         mergerFinished = advance(merger_, out.merge_act, out.merge_fin);
-        if (out.merge_act) aggCompStamp_ = freshest(fbOutStamp_, estOutStamp_);  // freshest-wins
-        if (out.merge_fin) aggOutStamp_  = aggCompStamp_;
+        if (out.merge_act) {
+            aggCompStamp_    = freshest(fbOutStamp_, estOutStamp_);
+            aggCompOldStamp_ = oldestValid(fbOutStamp_, estOutStamp_);
+        }
+        if (out.merge_fin) {
+            aggOutStamp_    = aggCompStamp_;
+            aggOutOldStamp_ = aggCompOldStamp_;
+        }
     }
     if (mergerFinished) {
         out.net_ca_sent = true;
-        caReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netCA_.delay), aggOutStamp_});
+        caReceiveAt_.push_back(NetPacket{step + sampleDelayTicks(netCA_.delay),
+                                         aggOutStamp_, aggOutOldStamp_});
     }
 
     // ---- In-vehicle Actuator. ----
     advance(actuator_, out.act_act, out.act_fin);
-    if (out.act_act) actInStamp_  = caRecStamp_;          // reads received command
-    if (out.act_fin) actOutStamp_ = actInStamp_;          // command becomes the applied output
+    if (out.act_act) {                       // reads received command
+        actInStamp_    = caRecStamp_;
+        actInOldStamp_ = caRecOldStamp_;
+    }
+    if (out.act_fin) {                       // command becomes the applied output
+        actOutStamp_    = actInStamp_;
+        actOutOldStamp_ = actInOldStamp_;
+    }
 
     // ---- Hold-time age sample: age of the CURRENTLY-APPLIED command, taken
     //      every tick (not only when a fresh command latches) and maxed over
@@ -279,6 +337,10 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     if (actOutStamp_ >= 0) {
         const long age = step - actOutStamp_;
         if (age > maxAgeTicks_) maxAgeTicks_ = age;
+    }
+    if (actOutOldStamp_ >= 0) {
+        const long age = step - actOutOldStamp_;
+        if (age > maxAgeOldTicks_) maxAgeOldTicks_ = age;
     }
 }
 

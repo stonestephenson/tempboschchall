@@ -119,11 +119,27 @@ carries no stamp and is excluded.
 *Why it matters:* without this exclusion the metric would be ill-defined at the
 merge — half the command's lineage isn't sensor data at all.
 
-### 4d. Freshest-wins at the merger
+### 4d. Both merge conventions are tracked
 At the merge the command depends on two sensor-derived inputs: the controller
 feedback **and** the merger's own direct read of the estimator state. Both trace
-to a sensor sample, possibly of different ages. We take the **freshest** of the
-two (the most recent sample), consistent with 4b.
+to a sensor sample, possibly of different ages. Since the feedback was computed
+from an *earlier* read of the estimator register, and register stamps are
+monotone under FIFO delivery, the feedback stamp is always the older of the two.
+The two possible conventions therefore correspond exactly to the two paths, and
+the harness tracks **both** in parallel:
+
+- **Freshest-contributing** (`age_fresh`, `maxDataAgeTicks`): the newest sample
+  in the lineage = the S→E→M→A shortcut. This is the multipath
+  reaction-latency reading, consistent with 4b.
+- **Oldest-direct-input** (`age_path`, `maxDataAgeOldestTicks`): the oldest
+  sample among the *present* direct register inputs (still no recursion through
+  the estimator's filter memory, which keeps it bounded) = the classical
+  S→E→B→M→A cause-effect-chain age. **The analytical bound (BOUND.md) is
+  defined against this one**, and it is the hypothesis a control-side guarantee
+  needs ("all sensor inputs to the command are at most A old").
+
+Always: `age_fresh ≤ age_path`, with skew bounded by the controller stage's
+contribution.
 
 ### 4e. Hold time is included
 A command, once applied, stays applied until the actuator latches a fresher one

@@ -39,6 +39,7 @@ void Simulation::start() {
         veh.startOffset = offsets_[v];
         veh.taskSet = TaskSet::challengeDefault();
         veh.taskSet.execMode = params_.execMode;
+        veh.taskSet.overrun  = params_.overrun;
         veh.taskSet.seed = params_.seed;
         taskSets[v] = veh.taskSet;
 
@@ -77,7 +78,8 @@ void Simulation::buildViews() {
         views_[v] = VehicleView{static_cast<int>(v), vehicles_[v].curVel,
                                 o.e_y_real, o.e_y_est, o.rolling_real, o.rolling_remote,
                                 o.average_real, o.threshold_cntr_real,
-                                o.critical_real, o.violated_real};
+                                o.critical_real, o.violated_real,
+                                o.critical_remote, o.violated_remote};
     }
 }
 
@@ -154,6 +156,8 @@ void Simulation::finalizeSummary() {
         s.hard_violations     = hardCount_[v];
         const long ageTicks   = scheduler_->maxDataAgeTicks(static_cast<int>(v));
         s.max_data_age_ms     = ageTicks < 0 ? -1.0 : ageTicks * dt_ * 1000.0;
+        const long ageOldTicks = scheduler_->maxDataAgeOldestTicks(static_cast<int>(v));
+        s.max_data_age_oldest_ms = ageOldTicks < 0 ? -1.0 : ageOldTicks * dt_ * 1000.0;
     }
     rec_.missedJobs = scheduler_->missedJobs();
     finalized_ = true;
@@ -174,20 +178,27 @@ void Simulation::runToCompletion(bool verbose) {
                     rec_.duration(), secs, secs > 0 ? rec_.duration() / secs : 0.0);
         std::printf("  scheduler: %s   missed jobs: %ld\n",
                     rec_.schedulerName.c_str(), rec_.missedJobs);
-        std::printf("  %-4s %12s %12s %10s %10s %12s\n", "veh", "avg_perf", "max_roll",
-                    "soft%", "hard", "max_age(ms)");
-        double worstAgeMs = -1.0;
+        std::printf("  %-4s %12s %12s %10s %10s %13s %13s\n", "veh", "avg_perf", "max_roll",
+                    "soft%", "hard", "age_fresh(ms)", "age_path(ms)");
+        double worstAgeMs = -1.0, worstAgeOldMs = -1.0;
+        auto fmtAge = [](char* buf, size_t n, double v) {
+            if (v < 0.0) std::snprintf(buf, n, "%13s", "n/a");
+            else         std::snprintf(buf, n, "%13.2f", v);
+        };
         for (int v = 0; v < rec_.nVehicles; ++v) {
             const VehicleSummary& s = rec_.summary[v];
             if (s.max_data_age_ms > worstAgeMs) worstAgeMs = s.max_data_age_ms;
-            char ageBuf[24];
-            if (s.max_data_age_ms < 0.0) std::snprintf(ageBuf, sizeof ageBuf, "%12s", "n/a");
-            else                         std::snprintf(ageBuf, sizeof ageBuf, "%12.2f", s.max_data_age_ms);
-            std::printf("  %-4d %12.5f %12.5f %9.2f%% %10d %s\n", v, s.average_real,
-                        s.max_rolling_real, s.soft_violation_pct, s.hard_violations, ageBuf);
+            if (s.max_data_age_oldest_ms > worstAgeOldMs) worstAgeOldMs = s.max_data_age_oldest_ms;
+            char ageBuf[24], ageOldBuf[24];
+            fmtAge(ageBuf, sizeof ageBuf, s.max_data_age_ms);
+            fmtAge(ageOldBuf, sizeof ageOldBuf, s.max_data_age_oldest_ms);
+            std::printf("  %-4d %12.5f %12.5f %9.2f%% %10d %s %s\n", v, s.average_real,
+                        s.max_rolling_real, s.soft_violation_pct, s.hard_violations,
+                        ageBuf, ageOldBuf);
         }
         if (worstAgeMs >= 0.0)
-            std::printf("  worst-case data age: %.2f ms\n", worstAgeMs);
+            std::printf("  worst-case data age: %.2f ms (freshest) / %.2f ms (path)\n",
+                        worstAgeMs, worstAgeOldMs);
     }
 }
 

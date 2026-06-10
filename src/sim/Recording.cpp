@@ -8,7 +8,17 @@ namespace cps {
 namespace {
 
 constexpr char    kMagic[4] = {'C', 'P', 'S', 'R'};
-constexpr int32_t kVersion  = 2;  // v2: VehicleSummary.max_data_age_ms
+constexpr int32_t kVersion  = 3;  // v2: +max_data_age_ms; v3: +max_data_age_oldest_ms
+
+// The on-disk VehicleSummary layout of format v2, for loading old recordings.
+struct VehicleSummaryV2 {
+    double average_real;
+    double max_rolling_real;
+    int    threshold_cntr_real;
+    double soft_violation_pct;
+    int    hard_violations;
+    double max_data_age_ms;
+};
 
 template <typename T>
 void put(std::ostream& os, const T& v) {
@@ -71,7 +81,8 @@ RunRecording RunRecording::load(const std::string& path) {
     is.read(magic, 4);
     if (std::memcmp(magic, kMagic, 4) != 0)
         throw std::runtime_error("RunRecording: bad magic in " + path);
-    if (get<int32_t>(is) != kVersion)
+    const int32_t version = get<int32_t>(is);
+    if (version != 2 && version != kVersion)
         throw std::runtime_error("RunRecording: unsupported version in " + path);
 
     RunRecording r;
@@ -90,7 +101,20 @@ RunRecording RunRecording::load(const std::string& path) {
 
     const int32_t nSum = get<int32_t>(is);
     r.summary.resize(nSum);
-    for (int i = 0; i < nSum; ++i) r.summary[i] = get<VehicleSummary>(is);
+    for (int i = 0; i < nSum; ++i) {
+        if (version == 2) {
+            const VehicleSummaryV2 s2 = get<VehicleSummaryV2>(is);
+            VehicleSummary& s = r.summary[i];
+            s.average_real        = s2.average_real;
+            s.max_rolling_real    = s2.max_rolling_real;
+            s.threshold_cntr_real = s2.threshold_cntr_real;
+            s.soft_violation_pct  = s2.soft_violation_pct;
+            s.hard_violations     = s2.hard_violations;
+            s.max_data_age_ms     = s2.max_data_age_ms;
+        } else {
+            r.summary[i] = get<VehicleSummary>(is);
+        }
+    }
 
     const int32_t nVeh = get<int32_t>(is);
     r.frames.resize(nVeh);

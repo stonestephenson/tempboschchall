@@ -51,4 +51,9 @@ long PolicyScheduler::maxDataAgeTicks(int vehicle) const {
     return models_[vehicle].maxDataAgeTicks();
 }
 
+long PolicyScheduler::maxDataAgeOldestTicks(int vehicle) const {
+    if (vehicle < 0 || vehicle >= static_cast<int>(models_.size())) return -1;
+    return models_[vehicle].maxDataAgeOldestTicks();
+}
+
 }  // namespace cps

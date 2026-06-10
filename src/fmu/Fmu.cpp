@@ -200,11 +200,14 @@ VehicleOutputs FmuInstance::readOutputs() const {
     api_.getInteger(comp_, intVrs, 1, iv);
     out.threshold_cntr_real = iv[0];
 
-    const fmi2ValueReference boolVrs[2] = {vr::kViolatedReal, vr::kCriticalReal};
-    fmi2Boolean bv[2];
-    api_.getBoolean(comp_, boolVrs, 2, bv);
-    out.violated_real = bv[0] != fmi2False;
-    out.critical_real = bv[1] != fmi2False;
+    const fmi2ValueReference boolVrs[4] = {vr::kViolatedReal, vr::kCriticalReal,
+                                           vr::kViolatedRemote, vr::kCriticalRemote};
+    fmi2Boolean bv[4];
+    api_.getBoolean(comp_, boolVrs, 4, bv);
+    out.violated_real   = bv[0] != fmi2False;
+    out.critical_real   = bv[1] != fmi2False;
+    out.violated_remote = bv[2] != fmi2False;
+    out.critical_remote = bv[3] != fmi2False;
 
     return out;
 }

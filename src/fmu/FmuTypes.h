@@ -62,6 +62,10 @@ struct VehicleOutputs {
     int    threshold_cntr_real = 0;  // soft-bound 10ms windows (VR 1036)
     bool   violated_real = false;    // |e_y| over soft bound   (VR 1039)
     bool   critical_real = false;    // in critical maneuver    (VR 1027)
+    // The cloud's legitimate (estimator-derived) view of the two flags above,
+    // for honest context-aware scheduling. Updated only when the estimator runs.
+    bool   violated_remote = false;  // (VR 1038)
+    bool   critical_remote = false;  // (VR 1026)
 };
 
 }  // namespace cps

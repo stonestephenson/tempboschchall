@@ -38,10 +38,21 @@ The executable is `build/cps`.
 ./build/cps --replay run.cpsr
 ```
 
-Key options: `--scheduler rm|edf|context`, `--vehicles N`, `--cores N`,
+Key options: `--scheduler rm|prm|edf|context|honest`, `--vehicles N`, `--cores N`,
 `--profile 10|12.5|15`, `--duration SEC`, `--exec avg|worst|best|pert`,
-`--seed N`, `--headless`, `--save FILE`, `--replay FILE`, `--screenshot FILE`.
-Run `./build/cps --help` for the full list.
+`--overrun kill|skip`, `--seed N`, `--headless`, `--csv FILE` (append
+per-vehicle summary rows for sweeps), `--save FILE`, `--replay FILE`,
+`--screenshot FILE`. Run `./build/cps --help` for the full list.
+
+Scheduler notes: `context` scores on ground-truth metrics (an **oracle** upper
+bound); `honest` is the same scoring restricted to the estimator-derived remote
+metrics the cloud legitimately sees; `prm` is partitioned RM (`vehicle %
+nCores`, no migration). `--overrun kill` (default) is kill-and-hold: an
+unfinished job is dropped at its next release and the output register holds;
+`skip` lets the overrunning job finish while skipping passed releases. The
+metrics table prints two worst-case data ages per vehicle: `age_fresh`
+(freshest-contributing convention) and `age_path` (oldest-direct / classical
+chain path — the one BOUND.md targets); see DATA_AGE.md §4d.
 
 ### Visualizer controls
 

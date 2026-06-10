@@ -28,6 +28,7 @@ struct SimParams {
     int      decimation    = 100; // record one frame per N ticks (100 == 10 ms)
     std::vector<long> startOffsets;  // empty -> spread vehicles evenly around lap
     ExecMode execMode      = ExecMode::Average;
+    OverrunPolicy overrun  = OverrunPolicy::KillAndHold;
     uint64_t seed          = 0;
 };
 

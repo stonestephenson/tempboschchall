@@ -24,6 +24,11 @@ struct SimConfig {
 
 // Read-only per-vehicle snapshot the scheduler may use to make context-aware
 // decisions (Challenge Q2). Rebuilt by the Simulation before each onTick.
+//
+// Information sets: `*_real` fields are ground truth -- a cloud scheduler that
+// reads them is an ORACLE (upper bound only). The information legitimately
+// available in-cloud is the estimator-derived set: e_y_est, rolling_remote,
+// critical_remote, violated_remote.
 struct VehicleView {
     int    id              = 0;
     double velocity        = 0.0;
@@ -33,8 +38,10 @@ struct VehicleView {
     double rolling_remote  = 0.0;
     double average_real    = 0.0;
     int    threshold_cntr_real = 0;
-    bool   critical        = false;
+    bool   critical        = false;  // ground-truth critical section
     bool   violated_real   = false;
+    bool   critical_remote = false;  // cloud's (estimated) view of the above
+    bool   violated_remote = false;
 };
 
 class Scheduler {
@@ -57,8 +64,12 @@ public:
     virtual long missedJobs() const { return 0; }
 
     // Worst-case end-to-end data age observed for `vehicle`, in base ticks; -1
-    // if this scheduler does not track it. Optional diagnostic.
+    // if this scheduler does not track it. Optional diagnostic. Two merge
+    // conventions are reported (see TaskChainModel): freshest-contributing
+    // (reaction latency) and oldest-direct-input (the S->E->B->M->A path age
+    // the analytical bound targets).
     virtual long maxDataAgeTicks(int /*vehicle*/) const { return -1; }
+    virtual long maxDataAgeOldestTicks(int /*vehicle*/) const { return -1; }
 };
 
 }  // namespace cps

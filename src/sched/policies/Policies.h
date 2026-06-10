@@ -17,11 +17,20 @@ namespace cps {
 // Use as the Challenge Q1 (non-context-aware) baseline.
 std::unique_ptr<CorePolicy> makeRateMonotonicPolicy();
 
+// Partitioned rate-monotonic: vehicles statically mapped to cores by
+// `vehicle % nCores`, one RM-best job per core, no migration.
+std::unique_ptr<CorePolicy> makePartitionedRMPolicy();
+
 // Earliest-deadline-first across all vehicles' ready cloud jobs.
 std::unique_ptr<CorePolicy> makeEdfPolicy();
 
 // Context-aware: gives cores first to vehicles whose control is degrading
-// (high rolling error / in a critical maneuver). Challenge Q2 demo.
-std::unique_ptr<CorePolicy> makeContextAwarePolicy();
+// (high rolling error / in a critical maneuver). Challenge Q2 demo. One class,
+// two information sets (see ContextAware.cpp):
+//   oracle — scores on ground-truth `*_real` metrics (upper bound only);
+//   honest — same scoring on the estimator-derived remote metrics the cloud
+//            legitimately sees.
+std::unique_ptr<CorePolicy> makeContextAwarePolicy();        // oracle
+std::unique_ptr<CorePolicy> makeContextAwareHonestPolicy();  // honest
 
 }  // namespace cps

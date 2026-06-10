@@ -33,7 +33,11 @@ namespace {
 std::unique_ptr<CorePolicy> makePolicy(const std::string& name) {
     if (name == "edf")     return makeEdfPolicy();
     if (name == "context" || name == "ctx" || name == "adaptive")
-                           return makeContextAwarePolicy();
+                           return makeContextAwarePolicy();  // oracle (reads *_real)
+    if (name == "honest" || name == "context-honest")
+                           return makeContextAwareHonestPolicy();
+    if (name == "prm" || name == "partitioned")
+                           return makePartitionedRMPolicy();
     return makeRateMonotonicPolicy();  // "rm" / default
 }
 
@@ -50,6 +54,38 @@ ExecMode parseExec(const std::string& s) {
     return ExecMode::Average;
 }
 
+OverrunPolicy parseOverrun(const std::string& s) {
+    if (s == "skip" || s == "skipnext") return OverrunPolicy::SkipNext;
+    return OverrunPolicy::KillAndHold;  // "kill" / default
+}
+
+// Append the run's per-vehicle summary to a CSV (header written if the file is
+// new/empty), so parameter sweeps can be aggregated across invocations.
+void appendCsv(const std::string& path, const RunRecording& rec,
+               const std::string& scheduler, const std::string& exec,
+               const std::string& overrun, uint64_t seed) {
+    std::FILE* f = std::fopen(path.c_str(), "a");
+    if (!f) {
+        std::fprintf(stderr, "Warning: cannot open CSV file %s\n", path.c_str());
+        return;
+    }
+    if (std::ftell(f) == 0)
+        std::fprintf(f, "scheduler,profile,vehicles,cores,exec,overrun,seed,duration_s,"
+                        "missed_jobs,veh,avg_perf,max_roll,soft_pct,hard,"
+                        "max_age_fresh_ms,max_age_path_ms\n");
+    for (int v = 0; v < rec.nVehicles; ++v) {
+        const VehicleSummary& s = rec.summary[v];
+        std::fprintf(f, "%s,%s,%d,%d,%s,%s,%llu,%.3f,%ld,%d,%.6f,%.6f,%.4f,%d,%.2f,%.2f\n",
+                     scheduler.c_str(), profileName(static_cast<Profile>(rec.profile)),
+                     rec.nVehicles, rec.nCores, exec.c_str(), overrun.c_str(),
+                     static_cast<unsigned long long>(seed), rec.duration(),
+                     rec.missedJobs, v, s.average_real, s.max_rolling_real,
+                     s.soft_violation_pct, s.hard_violations,
+                     s.max_data_age_ms, s.max_data_age_oldest_ms);
+    }
+    std::fclose(f);
+}
+
 const char* argValue(int argc, char** argv, const char* key, const char* def) {
     for (int i = 1; i < argc - 1; ++i)
         if (std::strcmp(argv[i], key) == 0) return argv[i + 1];
@@ -64,14 +100,18 @@ bool hasFlag(int argc, char** argv, const char* key) {
 void usage() {
     std::printf(
         "CPS Challenge Visualizer\n"
-        "  --scheduler rm|edf|context   scheduling policy (default rm)\n"
+        "  --scheduler rm|prm|edf|context|honest   scheduling policy (default rm;\n"
+        "                               context = oracle, honest = remote metrics only)\n"
         "  --vehicles N                 number of vehicles (default 1)\n"
         "  --cores N                    shared cloud cores (default 3)\n"
         "  --profile 10|12.5|15         speed profile (default 10)\n"
         "  --duration SEC               sim seconds (default 0 = one lap)\n"
         "  --exec avg|worst|best|pert   execution-time model (default avg)\n"
+        "  --overrun kill|skip          job overrun policy (default kill = kill-and-hold;\n"
+        "                               skip = overrunning job finishes, releases skipped)\n"
         "  --seed N                     RNG seed for pert mode (default 0)\n"
         "  --headless                   run without the GUI, print metrics\n"
+        "  --csv FILE                   append per-vehicle summary rows to FILE\n"
         "  --save FILE                  write the run recording to FILE\n"
         "  --replay FILE                visualize a saved recording (no sim)\n"
         "  --help                       this message\n");
@@ -105,22 +145,30 @@ int main(int argc, char** argv) {
         params.profile       = parseProfile(argValue(argc, argv, "--profile", "10"));
         params.nVehicles     = std::max(1, std::atoi(argValue(argc, argv, "--vehicles", "1")));
         params.nCores        = std::max(1, std::atoi(argValue(argc, argv, "--cores", "3")));
-        params.execMode      = parseExec(argValue(argc, argv, "--exec", "avg"));
+        const std::string execName    = argValue(argc, argv, "--exec", "avg");
+        const std::string overrunName = argValue(argc, argv, "--overrun", "kill");
+        params.execMode      = parseExec(execName);
+        params.overrun       = parseOverrun(overrunName);
         params.seed          = static_cast<uint64_t>(std::atoll(argValue(argc, argv, "--seed", "0")));
         const double durSec  = std::atof(argValue(argc, argv, "--duration", "0"));
         if (durSec > 0) params.durationSteps =
             static_cast<long>(durSec / vr::kBaseStepSeconds);
 
         const std::string schedName = argValue(argc, argv, "--scheduler", "rm");
+        const std::string csvFile   = argValue(argc, argv, "--csv", "");
         auto scheduler = std::make_unique<PolicyScheduler>(makePolicy(schedName));
 
         Simulation sim(params, std::move(scheduler));
 
         if (hasFlag(argc, argv, "--headless")) {
-            std::printf("Running headless: %s, %d vehicle(s), %d cores, profile %s\n",
+            std::printf("Running headless: %s, %d vehicle(s), %d cores, profile %s, "
+                        "exec %s, overrun %s\n",
                         schedName.c_str(), params.nVehicles, params.nCores,
-                        profileName(params.profile));
+                        profileName(params.profile), execName.c_str(), overrunName.c_str());
             sim.runToCompletion(true);
+            if (!csvFile.empty())
+                appendCsv(csvFile, sim.recording(), schedName, execName, overrunName,
+                          params.seed);
             if (!saveFile.empty()) {
                 sim.recording().save(saveFile);
                 std::printf("Saved recording to %s\n", saveFile.c_str());
