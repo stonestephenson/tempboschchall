@@ -150,10 +150,9 @@ matters more than sharpening R.
 ## 5. Week-2 work items (tightening)
 
 1. **Real R_i for cloud stages**: a sufficient global-RM/EDF response-time bound
-   for the 1-tick-quantum model (start from global FP RTA with carry-in
-   [Guan/Baker-style]; the tick-quantum + free migration model may admit a much
-   simpler direct argument — it behaves like fluid scheduling at quantum
-   granularity).
+   for the 1-tick-quantum model. → **Draft framework now in §7** (the discrete
+   model admits an exact per-tick interference argument); remaining: machine-
+   solve the fixed points and re-derive the workload bound for this model.
 2. **Offset/harmonic-aware sampling terms**: replace the (T + R − C) gaps with
    exact phase analysis under synchronous release (Li et al. RTSS'24's Δ = k·gcd
    quantization applies directly; T_A = 30 vs T_M = 20 gives gcd 10).

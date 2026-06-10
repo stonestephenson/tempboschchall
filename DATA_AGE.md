@@ -27,7 +27,9 @@ under real core contention, the actuator stage, **and** the time the command
 then stays applied before a fresher one replaces it (the *hold time*).
 
 We report, per vehicle, the **maximum** data age observed over the whole run,
-plus the overall worst across vehicles.
+plus the overall worst across vehicles — under **both** merge conventions
+(`age_fresh` and `age_path`, see §4d). The analytical bound (`BOUND.md`) is
+defined against `age_path`.
 
 ## 2. Why this way — measured, not derived
 
@@ -72,7 +74,7 @@ sensor sample ─(sensor)→ sens_out ─[SC network FIFO]→ network_sc_rec
 | SC network receives | received-sensor stamp ← stamp popped from the FIFO |
 | estimator activates | estimator stamp ← received-sensor stamp |
 | controller activates | feedback stamp ← estimator's published stamp |
-| **merger activates** | merged stamp ← **freshest(feedback stamp, estimator stamp)** |
+| **merger activates** | merged stamps ← **freshest(feedback, estimator)** and **oldest-present(feedback, estimator)** — both conventions tracked in parallel (§4d) |
 | merger finishes / sends | published merged stamp pushed into the CA network FIFO |
 | CA network receives | received-command stamp ← stamp popped from the FIFO |
 | actuator activates | actuator-in stamp ← received-command stamp |
@@ -175,9 +177,9 @@ true worst case.
 | --- | --- |
 | Stamping + propagation + per-tick max | `src/sched/TaskModel.cpp` (`endTick`) |
 | Stamp/`NetPacket` state | `src/sched/TaskModel.h` |
-| Per-vehicle accessor (scheduler interface) | `Scheduler::maxDataAgeTicks(vehicle)` (`src/sched/Scheduler.h`), overridden in `src/sched/PolicyScheduler.cpp` |
+| Per-vehicle accessors (scheduler interface) | `Scheduler::maxDataAgeTicks` (freshest) and `maxDataAgeOldestTicks` (path) (`src/sched/Scheduler.h`), overridden in `src/sched/PolicyScheduler.cpp` |
 | ticks→ms into the summary | `Simulation::finalizeSummary` (`src/sim/Simulation.cpp`) |
-| Stored field | `VehicleSummary::max_data_age_ms` (`src/sim/Recording.h`, `.cpsr` format v2) |
+| Stored fields | `VehicleSummary::max_data_age_ms` + `max_data_age_oldest_ms` (`src/sim/Recording.h`, `.cpsr` format v3; v2 still loads) |
 | Printed column + overall line | `Simulation::runToCompletion` (`src/sim/Simulation.cpp`) |
 
 ## 7. Reading the output
@@ -189,17 +191,22 @@ Any headless run prints it in the metrics table:
 ```
 
 ```
-  veh      avg_perf     max_roll      soft%       hard  max_age(ms)
+  veh      avg_perf     max_roll      soft%       hard age_fresh(ms)  age_path(ms)
   ...
-  3         0.50700      2.73888     13.43%          0        90.50
-  worst-case data age: 90.50 ms
+  3         0.50700      2.73888     13.43%          0         90.50         90.50
+  worst-case data age: 90.50 ms (freshest) / 100.50 ms (path)
 ```
 
-`max_age(ms)` is the per-vehicle worst-case data age; the final line is the
-overall worst across all vehicles. (`n/a` appears only if a scheduler does not
-track it — i.e. a raw `Scheduler` that bypasses `PolicyScheduler`.)
+`age_fresh` / `age_path` are the per-vehicle worst-case data ages under the two
+merge conventions (§4d); the final line is the overall worst across vehicles.
+`n/a` appears if a scheduler does not track ages (a raw `Scheduler` bypassing
+`PolicyScheduler`) — **or** if no full chain ever reached the actuator during
+the run: a vehicle that drove the whole run without a single sensor-derived
+actuation (severe starvation under overload — itself a key signal; see the
+12-vehicle kill-and-hold runs in `HANDOFF.md`).
 
-Reference magnitudes (6 vehicles / 3 cores): ~70 ms in `avg`, ~90 ms in `worst`
-— dominated by the two ~8–16 ms network hops plus the ~30 ms actuator-period
-hold. The number climbs as you add vehicles (cloud tasks get starved), which is
-where a context-aware scheduler should beat rate-monotonic.
+Reference magnitudes (6 vehicles / 3 cores, RM): ~70 ms in `avg`, ~90/100 ms
+(fresh/path) in `worst` — dominated by the two ~8–16 ms network hops plus the
+~30 ms actuator-period hold. The number climbs as you add vehicles (cloud tasks
+get starved), which is where a context-aware scheduler should beat
+rate-monotonic.

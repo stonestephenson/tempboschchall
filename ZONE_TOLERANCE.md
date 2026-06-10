@@ -7,9 +7,10 @@ timing requirement (Challenge Q4) that the age-aware scheduler will enforce,
 and the empirical port of the Wilson et al. (MEMOCODE 2024) zone methodology
 from UPPAAL to the Bosch FMU.
 
-Everything here runs on the existing harness; Phase 1 needs **no code changes**.
-Use `--csv` for aggregation. AI-assist the sweep scripts and plots freely; the
-analysis calls (zone boundaries, tolerance thresholds) are yours.
+Everything here runs on the existing harness — **no code changes needed**
+(`--net-delay` and `--csv` are implemented). AI-assist the sweep scripts and
+plots freely; the analysis calls (zone boundaries, tolerance thresholds) are
+yours.
 
 ## Zones
 
@@ -24,13 +25,12 @@ Map each recorded frame to its zone via `Frame.refStep` (the wrapped trajectory
 index — already in every recording/CSV frame row… in the recording; for CSV
 work, join on time × known start offset).
 
-## Phase 1 — whole-run delay sweeps, zone-attributed violations (no code changes)
+## Phase 1 — whole-run delay sweeps, zone-attributed violations
 
-Mechanism: inflate both network delays uniformly via a sweep over synthetic
-delay levels. Without touching code this is approximated by `--exec
-best|avg|worst` (3 points: 1 / 8 / 16 ms per hop) — too coarse. So Phase 1a
-(needs the one tiny code change below, ~15 lines, CS student can land it):
-add `--net-delay MS` overriding both `netSC`/`netCA` delays with a fixed value.
+Mechanism: `--net-delay MS` fixes both network delays to MS (already
+implemented; the value lands in a `net_delay_ms` CSV column). Sanity anchor:
+at N=1/worst, `--net-delay 4` measures 65.5 ms `age_path` vs 90.5 baseline —
+the knob moves the age nearly linearly, with a ~1 ms phasing residual.
 
 Then:
 1. Sweep `--net-delay` ∈ {1, 4, 8, 12, 16, 24, 32, 48, 64} ms × N=1 vehicle ×

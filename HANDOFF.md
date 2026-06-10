@@ -3,32 +3,52 @@
 Snapshot for a fresh agent to resume quickly. Last updated 2026-06-10 (PM —
 research-kickoff session; see also BOUND.md and ZONE_TOLERANCE.md, new).
 
-## Goal
-Use this simulator to **empirically validate an analytical (paper-written) bound
-on end-to-end data age** (latency) of the control chain. The simulator's measured
-worst-case data age should sit **at or below** the bound (soundness check); the
-gap shows the bound's pessimism (tightness). Simulation can *refute* a bound (if
-ever exceeded) but cannot *prove* it (a run may not hit the worst-case phasing).
+## Goal and research plan
+Use this simulator to **empirically validate an analytical bound on end-to-end
+data age** (latency) of the control chain. The measured worst-case `age_path`
+must sit **at or below** the bound (soundness check); the gap shows the bound's
+pessimism (tightness). Simulation can *refute* a bound (if ever exceeded) but
+cannot *prove* it (a run may not hit the worst-case phasing).
 
-The analytical bound itself is the user's (likely in the untracked
-`relatedPapers/` dir).
+The bound is being **derived in this project** — current draft in `BOUND.md`
+(v0.1, needs verification). `relatedPapers/` (untracked) holds third-party
+literature only: Guo-lab priors (Wilson et al. MEMOCODE'24 physics-aware MC;
+Arafat et al. DAC'22 ROS2 chain RTA), Li et al. RTSS'24 (tightest multi-rate
+chain reaction-time bound), the mixed-criticality canon (Vestal, AMC,
+Burns–Davis), and foundations (Liu & Layland, Audsley).
 
-## Current state (HEAD `5a6ec5d`)
-- Repo pushed to remote **`tempbosch`** = `github.com/stonestephenson/tempboschchall`, branch `main`.
-- **End-to-end data-age tracking: DONE** (stages 1–3), committed. Full design +
-  rationale in **`DATA_AGE.md`**.
+**Plan of record** (10-week REU w/ Dr. Guo, ~6.5 weeks left as of 2026-06-10):
+- **Route A** (now): workshop-grade paper — formal chain model + proven age
+  bound + soundness/tightness experiments on this harness, plus capacity
+  (Q1) and oracle-vs-honest (Q2) studies. Target: RTSS'26 WiP / workshop.
+- **Route B** (builds on A): physics-derived *age-criticality* scheduling —
+  per-track-zone max tolerable age (`ZONE_TOLERANCE.md` derives it
+  empirically) enforced by a mode-switching cloud scheduler with a
+  schedulability test. Target: RTAS'27. Extends Wilson et al. MEMOCODE'24
+  from 1 vehicle/verification to N vehicles/scheduling theory.
+- **Team**: user + CS student (sweeps, fixed-point solver, infra) + EE student
+  (zone tolerance, control-side) + Kurt Wilson (PhD mentor: guidance and
+  spot-checks on formal claims; students do the bulk of verification).
+
+## Current state (2026-06-10 end of day)
+- Remote **`tempbosch`** = `github.com/stonestephenson/tempboschchall`, branch `main`.
+- **End-to-end data-age tracking: DONE**, dual conventions (`age_fresh`,
+  `age_path`). Full design + rationale in **`DATA_AGE.md`**; candidate bound +
+  draft RTA in **`BOUND.md`**; EE experiment spec in **`ZONE_TOLERANCE.md`**.
 - Working tree clean except untracked `relatedPapers/` (user-added; not committed).
 
 ## What the data-age feature does (full detail in DATA_AGE.md)
 Stamps each sensor sample with the tick it fires, rides that stamp through the
 **real trigger events** (real core contention + sampled network delays) to the
 actuator, computes `age = now − stamp` **every tick (incl. hold time)**, keeps a
-per-vehicle running **max** → printed as a `max_age(ms)` column + a
-`worst-case data age:` line in the headless metrics table.
+per-vehicle running **max** → printed as `age_fresh(ms)` / `age_path(ms)`
+columns + a `worst-case data age:` line in the headless metrics table.
 
-**Convention (the bound must be defined to match this):** freshest contributing
-sensor sample; feedforward excluded (reference, not sensor data); freshest-wins
-at the merger; hold time included.
+**Conventions (the bound is defined against `age_path`):** feedforward excluded
+(reference, not sensor data); hold time included; at the merger BOTH rules are
+tracked — `age_fresh` = freshest contributing sample (≡ the S→E→M→A shortcut)
+and `age_path` = oldest direct input (≡ the classical S→E→B→M→A chain), which
+coincide up to the controller and satisfy `age_fresh ≤ age_path`.
 
 ## Key facts — do NOT re-derive these
 - Measurement is **harness-side** (`src/sched/TaskModel.cpp` `endTick`). The FMU
@@ -38,14 +58,19 @@ at the merger; hold time included.
   `--exec pert` can reorder network deliveries (harness earliest-arrival vs FMU
   strict FIFO) and desync the stamp from the delivered data.
 - `measured worst ≤ true worst ≤ analytical bound`.
-- **All scheduling policies are global.** `PolicyScheduler` builds one flat
-  cross-vehicle ready pool; `CorePolicy::assign` gets the pool + a core *count*
-  (no core identity). Partitioning would be a choice *inside* `assign()`, not an
-  architecture change.
-- **`ContextAware` currently scores on `*_real` (ground-truth) metrics → it is an
-  "oracle"/cheating scheduler.** The cloud legitimately sees only the
-  **estimated** (`*_remote`/`*_est`) metrics. In the triplicate metrics:
-  `real` = grade, `in_remote_platform` = what the cloud scheduler may use,
+- **The architecture is a flat cross-vehicle ready pool.** `PolicyScheduler`
+  hands `CorePolicy::assign` the pool + a core *count* (no core identity).
+  Partitioning is a choice *inside* `assign()` — `PartitionedRM` does exactly
+  that (`vehicle % nCores`) with no architecture change.
+- **Fixed-priority tie-breaks are the strict total order (period, vehicle,
+  kind)** — deterministic across STLs and exactly the FP model BOUND.md §7
+  analyzes. Stage-major (kind-first) ordering was tried and starves the whole
+  Merger class under overload (BOUND.md §7.1).
+- **`context` is an oracle, `honest` is the legitimate variant.** One class,
+  two information sets (`ContextAware.cpp`): oracle scores on `*_real`
+  (ground-truth) metrics the cloud could never see; honest scores on the
+  estimator-derived remote metrics. In the triplicate metrics: `real` = grade,
+  `in_remote_platform` = what the cloud scheduler may use,
   `in_local_platform` = the vehicle's view (currently unread/unused).
 
 ## Done in the 2026-06-10 PM session (uncommitted in working tree)
@@ -109,15 +134,23 @@ at the merger; hold time included.
 ```sh
 cmake --build build -j
 ./build/cps --headless --vehicles 6 --scheduler rm --exec worst --duration 30
-# compare: --scheduler rm vs context ; raise --vehicles to stress contention
+# compare: --scheduler rm|prm|edf|context|honest ; --overrun kill|skip ;
+# raise --vehicles to stress contention ; --net-delay MS for delay sweeps ;
+# --csv out.csv to accumulate sweep rows
 ```
-Reference magnitudes (6 veh / 3 cores): ~70 ms data age in `avg`, ~90 ms in `worst`.
+Reference magnitudes (6 veh / 3 cores, RM): ~70 ms data age in `avg`,
+90.5/100.5 ms (fresh/path) in `worst`, 0 missed jobs. N=1 worst: 90.5/90.5
+(deterministic).
 
 ## Key files
-- `DATA_AGE.md` — data-age design + decision rationale
+- `DATA_AGE.md` — data-age design + decision rationale (dual conventions: §4d)
+- `BOUND.md` — candidate analytical bound v0.1 + draft RTA (§7); review flags inline
+- `ZONE_TOLERANCE.md` — EE experiment spec (per-zone max tolerable age, Q4)
 - `USAGE.md` — build/run/controls + how to add a scheduler
-- `src/sched/TaskModel.cpp` (`endTick`) — stamping + propagation + per-tick max
+- `src/sched/TaskModel.cpp` (`endTick`) — stamping + propagation + per-tick max;
+  `releaseIfDue` — overrun policies (kill-and-hold / skip-next)
 - `src/sched/PolicyScheduler.cpp` — per-tick selection (beginTick/assign/grantCore/endTick)
-- `src/sched/policies/ContextAware.cpp`, `RateMonotonic.cpp` — the policies
+- `src/sched/policies/` — RateMonotonic, PartitionedRM, Edf, ContextAware
+  (oracle+honest via InfoSet)
 - `src/sched/Scheduler.h` (`VehicleView`), `CorePolicy.h` — interfaces
 - `src/fmu/Fmu.cpp` (`readOutputs`) — which FMU outputs are read
