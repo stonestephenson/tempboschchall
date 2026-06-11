@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="228" viewBox="0 0 1340 228">
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="20" y="28" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#111827">Schedule core timeline</text>
+<text x="20" y="48" font-family="Arial, sans-serif" font-size="12" fill="#475569">PartitionedPolicyScheduler[EDF] first 120.0 ms; task lanes top-to-bottom: E, C, F, M</text>
+<line x1="106.0" y1="52" x2="106.0" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="106.0" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">0ms</text>
+<line x1="206" y1="52" x2="206" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="206" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">10ms</text>
+<line x1="306" y1="52" x2="306" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="306" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">20ms</text>
+<line x1="406" y1="52" x2="406" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="406" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">30ms</text>
+<line x1="506" y1="52" x2="506" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="506" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">40ms</text>
+<line x1="606" y1="52" x2="606" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="606" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">50ms</text>
+<line x1="706" y1="52" x2="706" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="706" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">60ms</text>
+<line x1="806" y1="52" x2="806" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="806" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">70ms</text>
+<line x1="906" y1="52" x2="906" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="906" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">80ms</text>
+<line x1="1006" y1="52" x2="1006" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="1006" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">90ms</text>
+<line x1="1106" y1="52" x2="1106" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="1106" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">100ms</text>
+<line x1="1206" y1="52" x2="1206" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="1206" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">110ms</text>
+<line x1="1306" y1="52" x2="1306" y2="108" stroke="#cbd5e1" stroke-width="1"/>
+<text x="1306" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#475569">120ms</text>
+<text x="18" y="87" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#334155">core 0</text>
+<rect x="106" y="68" width="1200" height="40" fill="#e2e8f0" stroke="#cbd5e1"/>
+<text x="92" y="76" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="#64748b">E</text>
+<rect x="106" y="78" width="1200" height="10" fill="#dbe3ee"/>
+<line x1="106" y1="78" x2="1306" y2="78" stroke="#cbd5e1" stroke-width="1"/>
+<text x="92" y="86" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="#64748b">C</text>
+<line x1="106" y1="88" x2="1306" y2="88" stroke="#cbd5e1" stroke-width="1"/>
+<text x="92" y="96" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="#64748b">F</text>
+<rect x="106" y="98" width="1200" height="10" fill="#dbe3ee"/>
+<line x1="106" y1="98" x2="1306" y2="98" stroke="#cbd5e1" stroke-width="1"/>
+<text x="92" y="106" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="700" fill="#64748b">M</text>
+<rect x="106" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="113" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="115" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="117" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="206" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="306" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="313" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="315" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="317" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="406" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="506" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="513" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="515" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="517" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="606" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="706" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="713" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="715" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="717" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="806" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="906" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="913" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="915" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="917" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="1006" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="1106" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<rect x="1113" y="79" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="1115" y="89" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="1117" y="99" width="2" height="8" rx="2" fill="#2563eb"/>
+<rect x="1206" y="69" width="7" height="8" rx="2" fill="#2563eb"/>
+<text x="20" y="162" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#334155">vehicles</text>
+<rect x="106" y="150" width="12" height="12" fill="#2563eb"/>
+<text x="124" y="160" font-family="Arial, sans-serif" font-size="11" fill="#334155">v0</text>
+</svg>

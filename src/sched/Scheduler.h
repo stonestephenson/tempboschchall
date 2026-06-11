@@ -1,0 +1,64 @@
+// Scheduler.h — the raw scheduler interface (escape hatch / power path).
+//
+// A Scheduler is called once per base tick and fills the 16 triggers for every
+// vehicle. This is the lowest-level contract; most users instead write a
+// CorePolicy and use PolicyScheduler (see CorePolicy.h / PolicyScheduler.h),
+// but a fully custom or data-driven scheduler (e.g. Challenge Q6) can subclass
+// this directly.
+#pragma once
+
+#include <vector>
+
+#include "fmu/FmuTypes.h"
+
+namespace cps {
+
+struct TaskSet;  // declared in sched/TaskModel.h
+
+// Static configuration handed to the scheduler once at init.
+struct SimConfig {
+    int    nVehicles = 1;
+    int    nCores    = 3;     // shared cloud cores
+    double baseStep  = 1e-4;  // seconds per tick (FMU base step)
+};
+
+// Read-only per-vehicle snapshot the scheduler may use to make context-aware
+// decisions (Challenge Q2). Rebuilt by the Simulation before each onTick.
+struct VehicleView {
+    int    id              = 0;
+    double velocity        = 0.0;
+    double e_y_real        = 0.0;
+    double e_y_est         = 0.0;
+    double rolling_real    = 0.0;
+    double rolling_remote  = 0.0;
+    double average_real    = 0.0;
+    int    threshold_cntr_real = 0;
+    bool   critical        = false;
+    bool   violated_real   = false;
+};
+
+class Scheduler {
+public:
+    virtual ~Scheduler() = default;
+
+    // Called once before the run. `taskSets[v]` is the task set for vehicle v.
+    virtual void init(const SimConfig& /*cfg*/,
+                      const std::vector<TaskSet>& /*taskSets*/) {}
+
+    // Called every base tick. Fill out[v] (already sized to nVehicles, cleared)
+    // with the triggers vehicle v should fire this tick.
+    virtual void onTick(double t, long step,
+                        const std::vector<VehicleView>& views,
+                        std::vector<VehicleTriggers>& out) = 0;
+
+    virtual const char* name() const { return "Scheduler"; }
+
+    // Total jobs that missed their deadline (were dropped). Optional diagnostic.
+    virtual long missedJobs() const { return 0; }
+
+    // Worst-case end-to-end data age observed for `vehicle`, in base ticks; -1
+    // if this scheduler does not track it. Optional diagnostic.
+    virtual long maxDataAgeTicks(int /*vehicle*/) const { return -1; }
+};
+
+}  // namespace cps

@@ -1,0 +1,540 @@
+# Physics Engine / FMU Investigation
+
+## 1. Executive Summary
+
+- The simulator is a C++ FMI 2.0 Co-Simulation master around the `LateralMotionControl` FMU.
+  - FMU loading: `src/fmu/Fmu.cpp`, `FmuLibrary::FmuLibrary`.
+  - FMU instantiation/initialization: `src/sim/Simulation.cpp`, `Simulation::start`.
+  - FMU stepping: `src/sim/Simulation.cpp`, `Simulation::step`, calling `FmuInstance::doStep`.
+- The physical vehicle model is not only binary-hidden. The FMU archive and expanded `LateralMotionControl/sources/LateralMotionControl.c` expose the state-space update:
+  - `x(k+1) = Ad(v) x(k) + Bd(v) u(k) + Fd(v) r(k)`.
+  - State vector: yaw rate, slip angle, steering angle, steering rate, lateral error `e_y`, lateral-error rate.
+- The C++ harness does not track full world pose. It tracks reference-path index plus FMU lateral error.
+  - Centerline `x/y` comes from CSV files under `examples/example_v_*`.
+  - Actual displayed position is reconstructed as `centerline_point + e_y * normal`.
+- Lateral deviation is directly returned by the FMU as `current_phys_state_4` / VR `1004`.
+  - The C++ wrapper reads it as `VehicleOutputs::e_y_real`.
+  - Estimated lateral deviation is `est_states_out_4` / VR `1015`.
+- There are two bounds:
+  - Hard safety bound: `0.8 m`, documented in `examples/constraints.md` and represented in the harness as `vr::kHardBound`.
+  - Soft comfort / chance bound: `0.2 m`, FMU internal `ERROR_THRESHOLD`; the FMU's `violated_constraint` flag means `|e_y| > 0.2`, not `|e_y| > 0.8`.
+- Hard-bound detection in the current harness is decimated.
+  - `Simulation::recordFrame` checks `fabs(e_y_real) > vr::kHardBound` only when a frame is recorded.
+  - With the default `decimation = 100`, this is every 10 ms, not every 0.1 ms FMU tick.
+- Steering commands are computed inside the FMU task-chain logic, not by the C++ scheduler.
+  - The scheduler only decides boolean trigger pulses for Sensor, Estimator, Controller, Feedforward, Merger, Network, and Actuator stages.
+  - `act_out_0` is the final applied steering-angle command, and it is held until an actuator-finished trigger publishes a new command.
+- Reusing the existing simulator for steering-hold/recoverability experiments is feasible, but with limits.
+  - Holding the currently applied `act_out` is natural: stop producing new actuator-finished updates and the FMU keeps the old `act_out`.
+  - Directly assigning an arbitrary steering command is not supported by the FMU interface because `act_out_0` is an output, not an input.
+  - FMU state clone/branch is not supported (`canGetAndSetFMUstate=false`), so binary-search or rollout experiments likely need reruns from initial conditions unless a custom state snapshot layer is added.
+
+## 2. Key Files and Call Graph
+
+- Entry point:
+  - `main.cpp`, `main`: parses CLI options and constructs `Simulation`.
+  - `main.cpp`, `makeSchedulerSelection`: chooses RM/EDF/context-aware and partitioned variants.
+- Co-simulation master:
+  - `src/sim/Simulation.h`, `Simulation`: owns FMU instances, trajectory, scheduler, recording buffers.
+  - `src/sim/Simulation.cpp`, `Simulation::start`: loads trajectory, instantiates FMUs, initializes scheduler.
+  - `src/sim/Simulation.cpp`, `Simulation::step`: applies reference inputs, calls scheduler, applies triggers, steps FMUs, records frames.
+- FMU wrapper:
+  - `src/fmu/Fmu.h`, `FmuLibrary`, `FmuInstance`.
+  - `src/fmu/Fmu.cpp`, `FmuLibrary::FmuLibrary`: `dlopen` and `dlsym`.
+  - `src/fmu/Fmu.cpp`, `FmuInstance::initialize`: calls FMI setup/init and writes parameter defaults.
+  - `src/fmu/Fmu.cpp`, `FmuInstance::setInputs`, `applyTriggers`, `doStep`, `readOutputs`.
+- FMU variable map:
+  - `src/fmu/FmuVariables.h`: hand-coded value references and key constants.
+  - `LateralMotionControl/modelDescription.xml`: authoritative FMI metadata.
+- FMU internals:
+  - `LateralMotionControl/sources/LateralMotionControl.c`: physical dynamics, task-chain logic, performance metrics, FMI callbacks.
+- Reference trajectory:
+  - `src/trace/Trajectory.h`, `Trajectory`.
+  - `src/trace/Trajectory.cpp`, `Trajectory::load`, `Trajectory::computeNormalsAndBounds`.
+  - `examples/example_v_10`, `examples/example_v_12_5`, `examples/example_v_15`: CSV traces.
+- Scheduler/task model:
+  - `src/sched/Scheduler.h`, `Scheduler`, `VehicleView`.
+  - `src/sched/TaskModel.h/.cpp`, `TaskSet`, `TaskChainModel`.
+  - `src/sched/PolicyScheduler.h/.cpp`, `PolicyScheduler`.
+  - `src/sched/policies/*.cpp`, built-in core arbitration policies.
+- Visualization/recording:
+  - `src/sim/Recording.h`, `Frame`, `RunRecording`.
+  - `src/viz/Visualizer.cpp`: reconstructs world position and draws bounds.
+
+High-level call graph:
+
+```text
+main.cpp::main
+  -> makeSchedulerSelection(...)
+  -> Simulation(params, PolicyScheduler(...))
+  -> Simulation::start()
+       -> Trajectory::load(profile)
+       -> FmuLibrary::FmuLibrary()
+       -> FmuLibrary::instantiate("vehN")
+       -> FmuInstance::initialize(...)
+       -> Scheduler::init(...)
+  -> Simulation::step() repeated
+       -> Trajectory::inputsAt(step + offset)
+       -> FmuInstance::setInputs(ff0, ff1, velocity)
+       -> Simulation::buildViews()
+       -> Scheduler::onTick(...)
+            -> PolicyScheduler::onTick(...)
+                 -> TaskChainModel::beginTick(...)
+                 -> CorePolicy::assign(...)
+                 -> TaskChainModel::grantCore(...)
+                 -> TaskChainModel::endTick(..., VehicleTriggers)
+       -> FmuInstance::applyTriggers(...)
+       -> FmuInstance::doStep(t, dt)
+       -> FmuInstance::readOutputs()
+       -> Simulation::recordFrame(t) when decimated
+```
+
+## 3. FMU Loading and Simulation Stepping
+
+- FMU shared library path:
+  - `CMakeLists.txt:46-72` defines `FMU_DYLIB` as `LateralMotionControl/binaries/darwin64/LateralMotionControl.dylib` and passes it as `FMU_DYLIB_PATH`.
+  - `src/fmu/Fmu.cpp:50-55`, `FmuLibrary::defaultDylibPath`, falls back to that same relative dylib path.
+- Library loading:
+  - `src/fmu/Fmu.cpp:58-78`, `FmuLibrary::FmuLibrary`, calls `dlopen` and resolves prefixed symbols such as `LateralMotionControl_fmi2Instantiate`, `...fmi2DoStep`, `...fmi2SetReal`, `...fmi2GetReal`.
+- Interface type:
+  - `src/fmu/Fmu.h:1` says this is an FMI 2.0 Co-Simulation FMU.
+  - `LateralMotionControl/modelDescription.xml:7-25` has `fmiVersion="2.0"` and a `<CoSimulation>` block.
+  - `src/fmu/Fmu.cpp:97-100`, `FmuLibrary::instantiate`, passes `fmi2CoSimulation`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:972-975`, `LateralMotionControl_fmi2Instantiate`, rejects non-`fmi2CoSimulation`.
+- FMU instantiation:
+  - `src/sim/Simulation.cpp:34-48`, `Simulation::start`, creates one `Vehicle` per vehicle, calls `lib_->instantiate("veh" + std::to_string(v))`, then initializes with the trajectory velocity at that vehicle's start offset.
+- Initialization:
+  - `src/fmu/Fmu.cpp:119-146`, `FmuInstance::initialize`, calls:
+    - `fmi2SetupExperiment`
+    - `fmi2EnterInitializationMode`
+    - `fmi2SetReal` for controller/feedforward/default initial-state parameters
+    - `fmi2SetReal` for `init_velocity`
+    - `fmi2ExitInitializationMode`
+  - Important: `src/fmu/Fmu.cpp:123-127` notes the importer must push parameter start values; otherwise gains remain zero.
+- Simulation timestep:
+  - `src/fmu/FmuVariables.h:17-18`: `kBaseStepSeconds = 1e-4`, or 0.1 ms.
+  - `src/sim/Simulation.cpp:12-16`: `Simulation::Simulation` sets `dt_ = vr::kBaseStepSeconds`.
+  - `src/sim/Simulation.h:66`: default `dt_ = 1e-4`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:34-36`: `SIM_STEP 0.0001`, `EST_STEP 0.01`.
+- `doStep` location:
+  - `src/sim/Simulation.cpp:103-108`, `Simulation::step`, applies triggers, calls `vehicles_[v].fmu->doStep(t, dt_)`, then reads outputs.
+  - `src/fmu/Fmu.cpp:179-181`, `FmuInstance::doStep`, calls FMI `doStep(currentTime, stepSize, fmi2False)`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:1118-1192`, `LateralMotionControl_fmi2DoStep`, validates time and step size, advances the physical model, processes triggers, and increments FMU time.
+- Time advancement:
+  - Harness time: `src/sim/Simulation.cpp:90` computes `t = step_ * dt_`; `src/sim/Simulation.cpp:113` increments `step_`.
+  - FMU physical time: `LateralMotionControl/sources/LateralMotionControl.c:622-624` increments `s_phys.current_time += SIM_STEP` and `s_phys.step += 1`.
+  - FMU communication time: `LateralMotionControl/sources/LateralMotionControl.c:1188-1189` increments `comp->currentTime += communicationStepSize`.
+- FMU inputs written by C++ wrapper:
+  - `src/fmu/Fmu.cpp:148-160`, `FmuInstance::setInputs`, writes:
+    - `ff_ref_0` / VR `116`
+    - `ff_ref_1` / VR `117`
+    - `velocity` / VR `118`
+  - `src/fmu/Fmu.cpp:162-177`, `FmuInstance::applyTriggers`, writes 16 boolean trigger inputs VR `100..115`.
+- FMU outputs read by C++ wrapper:
+  - `src/fmu/Fmu.cpp:183-210`, `FmuInstance::readOutputs`, reads:
+    - `current_phys_state_4` / VR `1004` into `e_y_real`
+    - `est_states_out_4` / VR `1015` into `e_y_est`
+    - `act_out_0` / VR `1022` into `act_out`
+    - rolling and average performance outputs
+    - `real_threshold_error_cntr` / VR `1036`
+    - `real_violated_constraint` / VR `1039`
+    - `real_critical_section` / VR `1027`
+- Additional FMU outputs exist but are not normally read by the C++ wrapper:
+  - `LateralMotionControl/modelDescription.xml:108-145` exposes all six physical states, sensor output, estimator output, feedback/feedforward outputs, merger output, and actuator output.
+  - `FmuInstance::readReal` at `src/fmu/Fmu.cpp:212-217` can read any real VR for diagnostics, but the harness currently does not call it for full state vectors.
+
+## 4. Vehicle State Representation
+
+- C++ per-vehicle container:
+  - `src/sim/Vehicle.h:14-21`, `Vehicle`, stores:
+    - `std::unique_ptr<FmuInstance> fmu`
+    - shared `Trajectory`
+    - `startOffset`
+    - `TaskSet`
+    - latest `VehicleOutputs out`
+    - current velocity input `curVel`
+- C++ outputs snapshot:
+  - `src/fmu/FmuTypes.h:55-65`, `VehicleOutputs`, stores:
+    - `e_y_real`
+    - `e_y_est`
+    - `act_out`
+    - `rolling_real`
+    - `rolling_remote`
+    - `average_real`
+    - `threshold_cntr_real`
+    - `violated_real`
+    - `critical_real`
+- Scheduler view:
+  - `src/sched/Scheduler.h:27-38`, `VehicleView`, exposes to schedulers:
+    - `id`
+    - `velocity`
+    - `e_y_real`, `e_y_est`
+    - rolling/average performance
+    - threshold counter
+    - `critical`
+    - `violated_real`
+  - It does not expose full FMU state, world `x/y`, yaw/heading, steering state, or reference index.
+- FMU physical state vector:
+  - `src/fmu/FmuVariables.h:28-37` documents state layout:
+    - `x[0]` yaw rate `phi_dot`
+    - `x[1]` slip angle `beta`
+    - `x[2]` steering angle `delta`
+    - `x[3]` steering rate `delta_dot`
+    - `x[4]` lateral error `e_y`
+    - `x[5]` lateral-error rate `e_y_dot`
+  - Same mapping appears in `LateralMotionControl/modelDescription.xml:108-114`.
+  - Same indices are defined in `LateralMotionControl/sources/LateralMotionControl.c:30-33`.
+- World position:
+  - The FMU does not expose actual world `x/y` vehicle position.
+  - The harness stores `refStep` plus `e_y` in recorded frames.
+  - `src/sim/Recording.h:13-15` explicitly says actual position is reconstructed by the viewer as `trajectory.pointAt(refStep) + e_y * trajectory.normalAt(refStep)`.
+- Heading/yaw:
+  - No absolute heading/yaw state is exposed.
+  - FMU state `x[0]` is yaw rate, not yaw angle.
+  - Visualizer derives display forward direction from trajectory normal/tangent, not FMU yaw: `src/viz/Visualizer.cpp:243-244`.
+- Velocity:
+  - Velocity is an external input loaded from trajectory CSVs and written to the FMU each tick.
+  - `src/sim/Simulation.cpp:93-97` stores `vehicles_[v].curVel = in.vel` and calls `setInputs`.
+  - FMU stores current velocity in `SimPhysicalVariables::velocity_param` at `LateralMotionControl/sources/LateralMotionControl.c:279-282`.
+- Steering:
+  - Steering angle state is FMU `x[2]` / VR `1002`.
+  - Steering rate state is FMU `x[3]` / VR `1003`.
+  - Applied steering command is `act_out_0` / VR `1022`.
+  - Merger command before actuator/network is `agg_delta_out_0` / VR `1021`.
+- Lateral deviation:
+  - Direct FMU state, not computed from `x/y` in the harness.
+  - `src/fmu/FmuVariables.h:91-93` defines `kLateralErrorOut = kPhysState_start + kLateralError`.
+  - `src/fmu/Fmu.cpp:186-193` reads VR `1004` into `VehicleOutputs::e_y_real`.
+
+## 5. Reference Trajectory and Lateral Deviation
+
+- Reference data source:
+  - `src/trace/Trajectory.cpp:69-83`, `Trajectory::load`, reads:
+    - `x_position_track.csv`
+    - `y_position_track.csv`
+    - `velocity.csv`
+    - `feedforward_sequence_0.csv`
+    - `feedforward_sequence_1.csv`
+  - `examples/readme_examples.md:21-25` describes these files.
+  - `examples/readme_examples.md:33-36` says traces use 0.1 ms granularity and can be time-shifted for different starting points.
+- Supported profiles:
+  - `src/trace/Trajectory.cpp:43-49`, `profileInfo`, defines:
+    - `example_v_10`, peak 10.0 m/s, `lapSteps = 1178000`
+    - `example_v_12_5`, peak 12.5 m/s, `lapSteps = 944000`
+    - `example_v_15`, peak 15.0 m/s, `lapSteps = 786000`
+- Access pattern:
+  - `src/trace/Trajectory.h:42-55` wraps all trajectory access modulo `lapSteps`.
+  - `src/sim/Simulation.cpp:93-97` uses `step_ + offsets_[v]` as the vehicle's reference index.
+  - `src/sim/Simulation.cpp:123` records the wrapped reference step for visualization.
+- Centerline and normals:
+  - Centerline is the CSV `x/y` trace, accessed through `Trajectory::pointAt`.
+  - `src/trace/Trajectory.cpp:101-124`, `Trajectory::computeNormalsAndBounds`, computes normals from a finite-difference tangent over `+/-200` ticks.
+  - `src/core/Vec2.h:24-25`, `perp`, defines the normal as a 90-degree counter-clockwise rotation of the tangent.
+- Closest-point/cross-track calculation:
+  - There is no closest-point search in the C++ harness.
+  - The reference association is time/index based: at global tick `step`, vehicle `v` compares to `step + startOffset`.
+  - Lateral error itself is evolved by the FMU state-space model, not computed by projecting actual position onto the centerline.
+- Actual position reconstruction:
+  - `src/viz/Visualizer.cpp:64-69`, `Visualizer::frameActualPos`, computes `p + n * (f.e_y_real * exag_)`.
+  - `exag_` defaults to 25 for display, so this visual position is intentionally exaggerated.
+- Feedforward reference:
+  - `src/trace/Trajectory.h:48-52`, `Trajectory::Inputs`, provides `ff0`, `ff1`, and `vel`.
+  - `src/sim/Simulation.cpp:93-97` writes these into the FMU every tick.
+  - `readme.md:223-225` describes `ff_ref_0`, `ff_ref_1` as feedforward references related to desired path curvature and `velocity` as the current vehicle velocity.
+
+## 6. Steering Command Path
+
+- The scheduler does not compute steering values.
+  - It computes task and network trigger pulses.
+  - Steering computation happens inside `LateralMotionControl/sources/LateralMotionControl.c`, `process_trigger_events`.
+- Trigger path:
+  - `src/fmu/FmuTypes.h:12-22` documents trigger semantics.
+  - `src/sched/TaskModel.h:5-10` documents task chain:
+    - Sensor
+    - Network Sensor to Cloud
+    - Estimator
+    - Controller and Feedforward
+    - Merger
+    - Network Cloud to Actuator
+    - Actuator
+  - `src/sched/TaskModel.cpp:202-283`, `TaskChainModel::endTick`, emits trigger pulses.
+  - `src/fmu/Fmu.cpp:162-177`, `FmuInstance::applyTriggers`, writes those pulses to FMU boolean inputs.
+- FMU finish-before-activate ordering:
+  - `LateralMotionControl/sources/LateralMotionControl.c:643-684` first processes finished jobs and network receives.
+  - `LateralMotionControl/sources/LateralMotionControl.c:685-789` then processes activated jobs and network sends.
+  - `src/sched/TaskModel.cpp:223-228` mirrors this order for data-age tracking.
+- Feedback controller:
+  - `LateralMotionControl/sources/LateralMotionControl.c:723-734`, controller activation:
+    - adapts `K_TRC_FB` by velocity for `e_y` and `e_y_dot`
+    - computes `fb_psi_dot_comp = K_TRC_FB_vel * est_states_out`
+  - Output latches on controller-finished trigger at `LateralMotionControl/sources/LateralMotionControl.c:658-661`.
+- Feedforward controller:
+  - `LateralMotionControl/sources/LateralMotionControl.c:735-748`, feedforward activation:
+    - copies `ff_ref_input` into `ff_comp`
+    - adapts `K_TRC_FF` by velocity
+    - computes `ff_psi_dot_comp`
+  - Output latches on feedforward-finished trigger at `LateralMotionControl/sources/LateralMotionControl.c:662-666`.
+- Merger:
+  - `LateralMotionControl/sources/LateralMotionControl.c:749-777`, merger activation:
+    - sums feedforward and feedback yaw-rate commands into `psi_dot`
+    - computes velocity-dependent yaw-rate-to-steering conversion with `L_TOT = 2.63` and `V_CH = 32.71`
+    - computes `agg_delta_comp`
+  - `LateralMotionControl/sources/LateralMotionControl.c:668-670` latches `agg_delta_comp` into `agg_delta_out` on merger-finished.
+- Cloud-to-actuator network:
+  - `LateralMotionControl/sources/LateralMotionControl.c:778-785` sends a packet containing `agg_delta_out` and `ff_out`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:671-679` receives and deserializes into `network_ca_fb_rec` and `network_ca_ff_rec`.
+- Actuator:
+  - `LateralMotionControl/sources/LateralMotionControl.c:786-789` actuator activation copies `network_ca_fb_rec` into `act_in`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:680-683` actuator-finished copies `act_in` into `act_out`.
+  - `act_out` is the control input used by the physical dynamics at `LateralMotionControl/sources/LateralMotionControl.c:595`.
+- Command hold behavior:
+  - `act_out` is a persistent array in `TaskChainsVariables`, allocated at `LateralMotionControl/sources/LateralMotionControl.c:268`.
+  - It changes only on actuator-finished triggers.
+  - If no new actuator-finished trigger occurs, the previous `act_out` remains applied to the plant.
+- Units/bounds:
+  - `LateralMotionControl/modelDescription.xml:141-145` describes `agg_delta_out_0` and `act_out_0` as steering angle commands.
+  - No explicit unit is specified in `modelDescription.xml` for `act_out_0`.
+  - No steering saturation/limit was found in the C++ harness or FMU source.
+  - `readme.md:236` calls `act_out_0` the final steering angle command applied to the vehicle model.
+- Steering angle versus steering command:
+  - FMU state `x[2]` is steering angle `delta`.
+  - FMU output `act_out_0` is the applied steering command input.
+  - The plant dynamics include steering actuator dynamics through `x[2]`, `x[3]`, `Ad(v)`, and `Bd(v)`, so command and physical steering state are distinct.
+
+## 7. Safety Bound and Violation Detection
+
+- Hard safety bound:
+  - `examples/constraints.md:6-8` states lateral error must always be within `0.8 m`.
+  - `src/fmu/FmuVariables.h:20-23` defines `kHardBound = 0.8`.
+  - `USAGE.md:64-68` describes red `+/-0.8 m` hard bounds in the visualizer.
+- Soft comfort/chance bound:
+  - `examples/constraints.md:7-8` defines soft bound `ERROR_THRESHOLD` of `0.2 m`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:44-46` defines `ERROR_THRESHOLD 0.2` and `PROB_THRESHOLD 0.05`.
+  - `src/fmu/FmuVariables.h:22` defines `kSoftBound = 0.2`.
+- Exact lateral-error variable:
+  - Hard and soft checks use the absolute value of FMU lateral error state `x[4]`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:562-565` computes `fabs(current_phys_state[ERROR_STATE_INDEX]) > ERROR_THRESHOLD`.
+  - `src/sim/Simulation.cpp:131-134` computes `absEy = fabs(o.e_y_real)` and checks soft/hard flags.
+- Sign:
+  - Safety uses absolute value; sign does not matter.
+- FMU-internal soft violation:
+  - `LateralMotionControl/sources/LateralMotionControl.c:541-571`, `computePerformance`, sets `violated_threshold` and increments `num_violations` when `|e_y| > 0.2`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:615-620`, physical simulation updates internal and real performance only when `s_phys.step % 100 == 0`, i.e. every 10 ms.
+  - `src/fmu/FmuTypes.h:62-64` labels `threshold_cntr_real` and `violated_real` as soft-bound metrics.
+- Harness hard violation:
+  - `src/sim/Simulation.cpp:118-140`, `Simulation::recordFrame`, evaluates hard bound during frame recording.
+  - `src/sim/Simulation.cpp:133-134` sets `Frame::kHard` and increments `hardCount_` when `absEy > vr::kHardBound`.
+  - `src/sim/Simulation.cpp:143-157`, `Simulation::finalizeSummary`, copies `hardCount_` into `VehicleSummary::hard_violations`.
+- Sampling caveat:
+  - `Simulation::recordFrame` runs only if `step_ % params_.decimation == 0`, from `src/sim/Simulation.cpp:110-111`.
+  - Default decimation is 100 at `src/sim/Simulation.h:28`, meaning default hard-bound reporting is sampled every 10 ms.
+  - A hard violation lasting less than one recording interval can be missed in `hard_violations`.
+  - A future safety-deadline experiment should check `|e_y_real| > 0.8` every FMU tick, or set `decimation = 1`, if using this harness.
+- What happens on violation:
+  - The current simulator does not stop or abort on hard/soft violation.
+  - It records flags/summary counts and the visualizer colors/marks the breach.
+  - `src/viz/Visualizer.cpp:283-289` displays hard breach status.
+  - `src/viz/Visualizer.cpp:354-359` draws hard-breach ticks on the timeline.
+
+## 8. Visible or Inferred Vehicle Dynamics
+
+- The plant dynamics are visible in FMU C source.
+  - `readme.md:144-157` states the equation:
+    - `x(k+1) = Ad(v) * x(k) + Bd(v) * u(k) + Fd(v) * r(k)`
+  - `LateralMotionControl/sources/LateralMotionControl.c:574-600`, `simulate_lateral_motion_control_step`, implements that equation.
+- State update implementation:
+  - `Ad_x = Ad * current_phys_state`
+  - `Bd_u_ctrl = Bd * act_out`
+  - `ay_des = Fd * ff_ref_input`
+  - `current_phys_state = Ad_x + Bd_u_ctrl + ay_des`
+- Time discretization:
+  - `LateralMotionControl/sources/LateralMotionControl.c:34-36`: `SIM_STEP = 0.0001`, `EST_STEP = 0.01`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:807` says matrices are discretized with `sim_step = 0.1 ms`.
+- Velocity-dependent matrices:
+  - `LateralMotionControl/sources/LateralMotionControl.c:793-879`, `calculate_matrices_from_velocity`, computes `Ad`, `Bd`, `Fd` from velocity.
+  - `LateralMotionControl/sources/LateralMotionControl.c:798-801` clamps very low velocity to `0.1`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:945-961`, `update_parametric_matrices`, refreshes matrices from `velocity_param`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:1154-1157`, `fmi2DoStep`, updates matrices before simulating the step.
+- Lateral error dynamics:
+  - `LateralMotionControl/sources/LateralMotionControl.c:838-850` shows rows of `Ad` for `e_y` and `e_y_dot`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:873-877` shows feedforward reference contribution to `e_y` and `e_y_dot`.
+  - `Bd_out[4][0] = 0.0` at `LateralMotionControl/sources/LateralMotionControl.c:857`, so the steering command does not directly change `e_y` in one step; it affects other states and `e_y_dot`.
+- Steering dynamics:
+  - State `x[2]` steering angle and `x[3]` steering rate are updated through rows `Ad_out[2]`, `Ad_out[3]` and `Bd_out[2..3]` at `LateralMotionControl/sources/LateralMotionControl.c:824-857`.
+  - This means actuator/steering dynamics are represented in the state-space model, not as a direct algebraic vehicle-position update.
+- Position/heading update:
+  - No explicit world `x/y` or yaw angle differential equation exists in the FMU source.
+  - The model is lateral-error-domain dynamics around a reference path, not a full global-pose bicycle model.
+  - Yaw rate is state `x[0]`; yaw angle/heading is not part of the state vector.
+- Estimator:
+  - Sensor output is `[phi_dot, delta, delta_dot, e_y, v]`, from `LateralMotionControl/sources/LateralMotionControl.c:23-24` and `:687-691`.
+  - Estimator reconstructs full state with matrix `E` and estimates `e_y_dot`, from `LateralMotionControl/sources/LateralMotionControl.c:697-721`.
+  - Slip angle `beta` is effectively not estimated from sensors; `HARDCODED_EST` row for beta is zeros at `LateralMotionControl/sources/LateralMotionControl.c:168-175`.
+- Performance metrics:
+  - `HARDCODED_Q` penalizes lateral error and lateral-error rate, from `LateralMotionControl/sources/LateralMotionControl.c:178-187`.
+  - `computePerformance` calculates `x'Qx`, rolling average, total average, soft-threshold violation count, and critical-section flag.
+- FMU archive contents:
+  - `LateralMotionControl.fmu` contains:
+    - `modelDescription.xml`
+    - FMI 2 headers
+    - `sources/LateralMotionControl.c`
+    - Windows DLL
+  - The repository also includes expanded `LateralMotionControl/modelDescription.xml`, source files, and a Darwin dylib used by this harness.
+- FMU state save/clone:
+  - `LateralMotionControl/modelDescription.xml:22-23` says `canGetAndSetFMUstate="false"` and `canSerializeFMUstate="false"`.
+  - `LateralMotionControl/sources/LateralMotionControl.c:1557-1562` has FMU-state functions returning `fmi2Error`.
+
+## 9. Feasibility of Open-Loop Steering-Hold Experiments
+
+- The existing simulator can already step the real FMU with controlled reference inputs and scheduler triggers.
+  - Use `Simulation::step` if operating through the harness.
+  - Use `FmuLibrary` / `FmuInstance` directly for a smaller future experiment driver.
+- Natural hold mechanism:
+  - Since `act_out` changes only on actuator-finished triggers, holding steering is possible by stopping future actuator-finished updates after a command has latched.
+  - This is visible in `LateralMotionControl/sources/LateralMotionControl.c:680-683`.
+- Direct arbitrary steering assignment is not currently exposed.
+  - `act_out_0` is an output in `LateralMotionControl/modelDescription.xml:144-145`.
+  - `FmuInstance::setInputs` writes only `ff_ref_0`, `ff_ref_1`, and `velocity`; see `src/fmu/Fmu.cpp:148-160`.
+  - `fmi2SetReal` in the FMU accepts parameters, feedforward references, initial state, and velocity, but not `act_out`; see `LateralMotionControl/sources/LateralMotionControl.c:1286-1344`.
+- Practical future approaches:
+  - Trigger-generated initial command:
+    - Run the normal task chain until the desired initial steering command reaches `act_out`.
+    - Then emit no further actuator-finished triggers, while continuing `doStep` and reference/velocity inputs.
+  - Direct FMU-level experiment driver:
+    - Instantiate one FMU with `FmuLibrary`.
+    - Initialize with chosen `x0_*` and `init_velocity` by extending or bypassing `FmuInstance::initialize`.
+    - Manually write trigger pulses and reference inputs.
+    - Step using `doStep(t, 1e-4)`.
+    - Read `current_phys_state_4` every tick via `FmuInstance::readReal(vr::kLateralErrorOut)` or `readOutputs`.
+  - Direct command injection:
+    - Not possible through the current FMU interface without changing the FMU or adding a new exposed input.
+    - A future direct-dynamics script could reuse `LateralMotionControl.c` equations outside FMI, but that would be separate from the current harness.
+- Detecting violation:
+  - For deadline experiments, check `fabs(e_y_real) > 0.8` every tick.
+  - Do not rely on `VehicleOutputs::violated_real`; it is the FMU soft threshold flag for `0.2 m`.
+  - Do not rely on default `hard_violations` summary if sub-10-ms precision matters.
+- Minimal future code likely needed:
+  - A small headless experiment driver that controls triggers directly or a custom `Scheduler` subclass that can freeze actuator updates.
+  - Optional API additions to expose full FMU state reads and initialization parameters cleanly.
+  - Optional `decimation = 1` recording mode or direct per-tick logging to avoid missing hard-bound crossings.
+
+## 10. Feasibility of Recoverability Experiments
+
+- Basic experiment shape is feasible by repeated rollouts:
+  - Initialize from the same initial condition.
+  - Hold or suppress command updates for delay `Delta t`.
+  - Resume a recovery policy / task-chain trigger schedule.
+  - Step forward and check whether `|e_y| > 0.8`.
+- Recovery controller plug-in points:
+  - Built-in FMU controller path:
+    - Resume normal Sensor/Estimator/Controller/Feedforward/Merger/Actuator triggers via `TaskChainModel` or a custom scheduler.
+  - Scheduler-level recovery:
+    - A custom `CorePolicy` can prioritize a vehicle based on `VehicleView::e_y_real`, `e_y_est`, `critical`, or future recoverability metrics.
+    - A custom `Scheduler` can bypass `PolicyScheduler` and directly control trigger pulses.
+  - FMU-internal direct maximum correction:
+    - Not available through the current interface because arbitrary steering command input is not exposed.
+- Steering saturation limits:
+  - No explicit steering saturation or steering bounds were found.
+  - Model metadata calls the command a steering angle but does not define min/max for `act_out_0`.
+  - `modelDescription.xml` has a minimum only for velocity, not steering.
+- Repeated rollouts:
+  - Feasible from initial conditions: construct/reset FMU and rerun the same reference/trigger schedule.
+  - `LateralMotionControl_fmi2Reset` exists at `LateralMotionControl/sources/LateralMotionControl.c:1501-1531`, but the C++ wrapper resolves reset without exposing a public `FmuInstance::reset` method.
+  - The FMU does not support cloning/restoring arbitrary intermediate state:
+    - `modelDescription.xml:22-23`
+    - `LateralMotionControl/sources/LateralMotionControl.c:1557-1562`
+- Branching implication:
+  - To evaluate recoverability at many delay values, the current FMU likely needs reruns from the initial condition up to each candidate delay.
+  - Efficient branching from a saved state would need new support outside the current FMU interface, such as:
+    - adding FMU state serialization,
+    - creating a direct C++ dynamics wrapper with explicit state copying,
+    - or adding a controlled snapshot API around the expanded source.
+
+## 11. Scheduling Integration Points
+
+- Scheduler interface:
+  - `src/sched/Scheduler.h:40-62`, `Scheduler`, is called every base tick.
+  - `Scheduler::onTick` receives current time, tick index, per-vehicle views, and fills `VehicleTriggers`.
+- Per-vehicle context available to schedulers:
+  - `src/sched/Scheduler.h:27-38`, `VehicleView`, includes velocity, real/estimated lateral error, performance metrics, critical flag, and soft-violation flag.
+  - `src/sim/Simulation.cpp:74-81`, `Simulation::buildViews`, populates it from latest FMU outputs before calling scheduler.
+- Task parameters:
+  - `src/sched/TaskModel.cpp:38-52`, `TaskSet::challengeDefault`, defines:
+    - Sensor 5 ms
+    - Estimator 10 ms
+    - Controller 20 ms
+    - Feedforward 20 ms
+    - Merger 20 ms
+    - Actuator 30 ms
+    - Sensor-to-cloud and cloud-to-actuator delay best/average/worst of 1/8/16 ms
+  - These correspond to `examples/parameters.md:16-28`.
+- Deadlines and missed jobs:
+  - `src/sched/TaskModel.h:57-66`, `ReadyJob`, includes `releaseStep`, `deadlineStep`, `remainingTicks`, and `started`.
+  - `src/sched/TaskModel.cpp:134-142`, `releaseIfDue`, drops a previous active job as a miss when a new release arrives before completion.
+  - `src/sim/Simulation.cpp:158`, `finalizeSummary`, records `scheduler_->missedJobs()`.
+- Task releases/execution:
+  - `src/sched/TaskModel.cpp:145-160`, `beginTick`, releases jobs and exposes ready cloud jobs.
+  - `src/sched/TaskModel.cpp:162-164`, `grantCore`, marks jobs granted by policy.
+  - `src/sched/TaskModel.cpp:202-283`, `endTick`, advances jobs and emits FMU trigger pulses.
+- Core arbitration:
+  - `src/sched/PolicyScheduler.cpp:87-137`, `PolicyScheduler::onTick`, collects ready jobs, calls `CorePolicy::assign`, grants selected jobs, and emits triggers.
+  - `src/sched/CorePolicy.h:18-29`, `CorePolicy`, is the extension point for policies.
+- Built-in priorities:
+  - `src/sched/policies/RateMonotonic.cpp:20-29`: shorter period first, keep running jobs, lower vehicle id.
+  - `src/sched/policies/Edf.cpp:19-28`: earliest deadline first, keep running jobs, lower vehicle id.
+  - `src/sched/policies/ContextAware.cpp:22-30`: urgency is `3*|e_y_real| + rolling_real + critical bonus + soft-violation bonus`.
+- Separate versus shared tasks:
+  - `src/sched/TaskModel.h:5-10` says Sensor and Actuator are in-vehicle, while Estimator/Controller/Feedforward/Merger are cloud tasks contending for shared cores.
+  - `src/sched/PolicyScheduler.cpp:66-73` owns one `TaskChainModel` per vehicle.
+  - `src/sched/PolicyScheduler.cpp:102-123` supports partitioned variants assigning vehicle `v` to cloud core `v % nCores`.
+- Where a future "time until unrecoverable" could enter:
+  - Add a field to `VehicleView`, populated in `Simulation::buildViews`, if computed from current FMU outputs or a side experiment.
+  - Use it in a new `CorePolicy::assign` policy, similar to `ContextAwarePolicy::urgency`.
+  - For full trigger-level intervention, implement a `Scheduler` subclass that uses recoverability/deadline values to directly release, drop, or pulse tasks.
+  - The policy should treat `VehicleOutputs::violated_real` as a soft-bound flag unless it is changed or replaced by explicit hard-bound status.
+
+## 12. Unknowns / Black Boxes / Assumptions
+
+- Steering command units are not explicitly declared.
+  - The FMU and docs call `act_out_0` and `agg_delta_out_0` steering angle commands.
+  - No `unit="rad"` or min/max is present for these outputs.
+- No steering saturation found.
+  - Any "maximum steering correction" experiment needs either an assumed external limit, a model update, or a separate source for steering limits.
+- No full global pose model found.
+  - The FMU models lateral-error-domain dynamics relative to a trajectory.
+  - World `x/y` is reference centerline data plus displayed `e_y` offset; actual pose is not integrated.
+- No closest-point logic found.
+  - The simulator uses known reference step, not nearest path projection.
+- Hard-bound violation is not an FMU output.
+  - The FMU outputs soft threshold status for `0.2 m`.
+  - The harness/visualizer check `0.8 m` externally during recorded frames.
+- FMU `doStep` error message says "1 ms granularity" at `LateralMotionControl/sources/LateralMotionControl.c:1140-1142`, but the normalization factor `10000.0 * communicationStepSize` and constants indicate `0.1 ms` granularity.
+- The FMU C source is visible, but the origin/derivation of the matrix coefficients in `calculate_matrices_from_velocity` is not documented in the code.
+- FMU state cloning is unsupported.
+  - This is important for recoverability experiments that need branching from many intermediate states.
+- The C++ wrapper does not currently expose reset, full state vector reads, direct initial-state setting, or arbitrary trigger scripting as a dedicated experiment API.
+  - Lower-level FMI calls exist internally, but the current high-level harness is optimized for full scheduled runs.
+
+## 13. Suggested Next Investigation Steps
+
+- Build a small read-only-style experiment design document before coding:
+  - Decide whether "held steering" means holding `act_out` after a normally latched command, or injecting an arbitrary command.
+  - Decide whether hard-bound crossing must be detected at 0.1 ms or a coarser interval.
+- Inspect/derive units and limits:
+  - Confirm steering angle units and any real vehicle steering limits from challenge paper, model authors, or external model documentation.
+  - Confirm whether a physical saturation should be added outside the FMU for recoverability tests.
+- Prototype a future per-tick logging path:
+  - Use `FmuInstance::readReal(vr::kLateralErrorOut)` or `readOutputs()` every tick.
+  - Avoid relying on default recording decimation for safety-deadline experiments.
+- Prototype a direct FMU driver:
+  - Instantiate one FMU.
+  - Set initial state and velocity.
+  - Pulse triggers manually until `act_out` reaches a desired value.
+  - Hold the command by suppressing actuator-finished updates.
+  - Step and log `e_y`.
+- For recoverability:
+  - First implement rerun-from-initial-condition rollouts because FMU branching is not available.
+  - Later evaluate whether adding explicit state snapshot support is worth the engineering cost.
+- For scheduling integration:
+  - Add a new policy that ranks ready jobs by a computed hard-bound deadline or recoverability margin.
+  - Keep the computation separate from the policy first, so it can be validated against open-loop/recovery rollouts before affecting scheduler behavior.
