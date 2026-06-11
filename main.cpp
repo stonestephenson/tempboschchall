@@ -153,6 +153,7 @@ int main(int argc, char** argv) {
         params.execMode      = parseExec(execName);
         params.overrun       = parseOverrun(overrunName);
         params.netDelayMs    = std::atof(argValue(argc, argv, "--net-delay", "-1"));
+        params.validatePredictor = hasFlag(argc, argv, "--validate-predictor");
         params.seed          = static_cast<uint64_t>(std::atoll(argValue(argc, argv, "--seed", "0")));
         const double durSec  = std::atof(argValue(argc, argv, "--duration", "0"));
         if (durSec > 0) params.durationSteps =

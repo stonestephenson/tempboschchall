@@ -14,6 +14,7 @@
 #include "fmu/Fmu.h"
 #include "sched/Scheduler.h"
 #include "sched/TaskModel.h"
+#include "sim/Predictor.h"
 #include "sim/Recording.h"
 #include "sim/Vehicle.h"
 #include "trace/Trajectory.h"
@@ -33,6 +34,10 @@ struct SimParams {
     // regardless of execMode (which then governs task execution times only).
     // For the zone-tolerance delay sweeps (ZONE_TOLERANCE.md).
     double   netDelayMs    = -1.0;
+    // Predictor fidelity gate: at every actuator latch, predict e_y over the
+    // upcoming hold with the ported plant model and compare against the FMU's
+    // realized e_y. Prints max |deviation| at the end (PASS < 1e-6 m).
+    bool     validatePredictor = false;
     uint64_t seed          = 0;
 };
 
@@ -76,6 +81,19 @@ private:
 
     std::vector<double> maxRolling_;
     std::vector<int>    hardCount_;
+
+    // --- Predictor fidelity gate state (params_.validatePredictor) ---
+    void validatePredictions();
+    struct PendingValidation {
+        Prediction pred;
+        long       madeAtStep = -1;  // pred.e_y[j] = e_y after tick madeAtStep + j
+        bool       active     = false;
+    };
+    std::vector<PendingValidation> pendingVal_;
+    double valMaxDev_   = 0.0;
+    long   valHolds_    = 0;
+    long   valSamples_  = 0;
+    double valMaxAct_   = 0.0;  // max |act_out| seen (delta-max calibration aid)
 };
 
 }  // namespace cps

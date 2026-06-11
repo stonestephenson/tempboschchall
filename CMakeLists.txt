@@ -41,6 +41,7 @@ add_library(cps_core STATIC
     src/sched/TaskModel.cpp
     src/sched/PolicyScheduler.cpp
     ${POLICY_SOURCES}
+    src/sim/Predictor.cpp
     src/sim/Recording.cpp
     src/sim/Simulation.cpp)
 

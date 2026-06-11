@@ -1,5 +1,6 @@
 #include "sim/Simulation.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -114,6 +115,8 @@ bool Simulation::step() {
         vehicles_[v].out = vehicles_[v].fmu->readOutputs();
     }
 
+    if (params_.validatePredictor) validatePredictions();
+
     // 4. Record a decimated frame.
     if (step_ % params_.decimation == 0) recordFrame(t);
 
@@ -144,6 +147,45 @@ void Simulation::recordFrame(double t) {
 
         rec_.frames[v].push_back(f);
         if (o.rolling_real > maxRolling_[v]) maxRolling_[v] = o.rolling_real;
+    }
+}
+
+// Predictor fidelity gate. Tick t's physics runs on the command applied
+// BEFORE this tick's trigger pass (the FMU advances physics first, then
+// processes triggers), so the state read after an act_fin tick is still
+// governed by the old command and remains comparable against the old
+// prediction; the NEW prediction then starts from this state with the
+// just-latched command, whose first affected physics tick is step_ + 1.
+void Simulation::validatePredictions() {
+    if (pendingVal_.size() != vehicles_.size()) pendingVal_.resize(vehicles_.size());
+
+    for (size_t v = 0; v < vehicles_.size(); ++v) {
+        const VehicleOutputs& o = vehicles_[v].out;
+        valMaxAct_ = std::max(valMaxAct_, std::fabs(o.act_out));
+
+        // Compare this tick's realized e_y against the active prediction.
+        PendingValidation& pv = pendingVal_[v];
+        if (pv.active) {
+            const long idx = step_ - pv.madeAtStep;
+            if (idx >= 0 && idx < static_cast<long>(pv.pred.e_y.size())) {
+                const double dev = std::fabs(o.phys[4] - pv.pred.e_y[idx]);
+                if (dev > valMaxDev_) valMaxDev_ = dev;
+                ++valSamples_;
+            }
+        }
+
+        // A fresh command latched: predict the upcoming hold from this state.
+        if (triggers_[v].act_fin) {
+            PredictParams p;
+            p.horizonTicks = 400;  // covers the ~30 ms actuator hold
+            p.vizStride = 1;
+            p.computePnr = false;
+            pv.pred = predictHold(o.phys, o.act_out, step_ + 1, *traj_,
+                                  offsets_[v], p);
+            pv.madeAtStep = step_;
+            pv.active = true;
+            ++valHolds_;
+        }
     }
 }
 
@@ -204,6 +246,12 @@ void Simulation::runToCompletion(bool verbose) {
         if (worstAgeMs >= 0.0)
             std::printf("  worst-case data age: %.2f ms (freshest) / %.2f ms (path)\n",
                         worstAgeMs, worstAgeOldMs);
+        if (params_.validatePredictor) {
+            std::printf("  predictor validation: %ld holds, %ld samples, "
+                        "max |dev| = %.3e m -> %s   (max |act_out| = %.4f rad)\n",
+                        valHolds_, valSamples_, valMaxDev_,
+                        valMaxDev_ < 1e-6 ? "PASS" : "FAIL", valMaxAct_);
+        }
     }
 }
 

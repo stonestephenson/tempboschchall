@@ -183,17 +183,20 @@ bool FmuInstance::doStep(double currentTime, double stepSize) {
 VehicleOutputs FmuInstance::readOutputs() const {
     VehicleOutputs out;
 
-    const fmi2ValueReference realVrs[6] = {
-        vr::kLateralErrorOut, vr::kEstLateralErrorOut, vr::kActOut,
+    const fmi2ValueReference realVrs[11] = {
+        vr::kPhysState_start + 0, vr::kPhysState_start + 1, vr::kPhysState_start + 2,
+        vr::kPhysState_start + 3, vr::kPhysState_start + 4, vr::kPhysState_start + 5,
+        vr::kEstLateralErrorOut, vr::kActOut,
         vr::kRollingReal, vr::kRollingRemote, vr::kAverageReal};
-    fmi2Real rv[6];
-    api_.getReal(comp_, realVrs, 6, rv);
-    out.e_y_real       = rv[0];
-    out.e_y_est        = rv[1];
-    out.act_out        = rv[2];
-    out.rolling_real   = rv[3];
-    out.rolling_remote = rv[4];
-    out.average_real   = rv[5];
+    fmi2Real rv[11];
+    api_.getReal(comp_, realVrs, 11, rv);
+    for (int i = 0; i < 6; ++i) out.phys[i] = rv[i];
+    out.e_y_real       = rv[4];  // == phys[kLateralError]
+    out.e_y_est        = rv[6];
+    out.act_out        = rv[7];
+    out.rolling_real   = rv[8];
+    out.rolling_remote = rv[9];
+    out.average_real   = rv[10];
 
     const fmi2ValueReference intVrs[1] = {vr::kThresholdCntrReal};
     fmi2Integer iv[1];

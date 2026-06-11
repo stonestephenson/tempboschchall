@@ -53,7 +53,9 @@ static_assert(sizeof(VehicleTriggers) == 16,
 // Compact snapshot of FMU outputs read after each doStep. We deliberately read
 // only what the simulation, recording, and context-aware schedulers need.
 struct VehicleOutputs {
-    double e_y_real      = 0.0;  // ground-truth lateral error  (VR 1004)
+    double phys[6]       = {};   // full physical state x[0..5]  (VR 1000..1005);
+                                 // [yaw rate, slip, steer angle, steer rate, e_y, e_y_dot]
+    double e_y_real      = 0.0;  // ground-truth lateral error  (VR 1004, == phys[4])
     double e_y_est       = 0.0;  // estimated lateral error     (VR 1015)
     double act_out       = 0.0;  // applied steering command    (VR 1022)
     double rolling_real  = 0.0;  // real rolling performance    (VR 1030)
