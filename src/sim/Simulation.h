@@ -38,6 +38,12 @@ struct SimParams {
     // upcoming hold with the ported plant model and compare against the FMU's
     // realized e_y. Prints max |deviation| at the end (PASS < 1e-6 m).
     bool     validatePredictor = false;
+    // Assumed steering limit for recoverability predictions (rad);
+    // <= 0 uses the calibrated per-profile default (defaultDeltaMax).
+    double   deltaMax      = -1.0;
+    // TimeToUnsafe policy behavior for past-PNR cars: false (default) =
+    // maximum urgency (never give up); true = triage (drop to lowest).
+    bool     triage        = false;
     uint64_t seed          = 0;
 };
 
@@ -57,6 +63,10 @@ public:
 
     const RunRecording&         recording()  const { return rec_; }
     std::shared_ptr<Trajectory> trajectory() const { return traj_; }
+
+    // Latest cached held-command prediction for a vehicle (refreshed every
+    // kPredictRefreshTicks; see currentPredTicks for aged TTV/TTPNR values).
+    const Prediction& prediction(int vehicle) const { return predCache_[vehicle]; }
 
 private:
     void buildViews();
@@ -81,6 +91,23 @@ private:
 
     std::vector<double> maxRolling_;
     std::vector<int>    hardCount_;
+
+    // --- Held-command prediction cache (drives TTU policy, viz, stats).
+    //     TTV + polyline refresh every 10 ms (cheap single rollout); the PNR
+    //     binary search (the expensive part) every 50 ms; both age in between. ---
+    static constexpr long kPredictRefreshTicks = 100;  // 10 ms, like the metrics
+    static constexpr long kPnrRefreshTicks     = 500;  // 50 ms
+    void refreshPredictions(bool withPnr);
+    // Aged (ttv, ttpnr) in ticks as of the current step_: cached values minus
+    // elapsed ticks, clamped at 0; horizon sentinel passes through unchanged.
+    void currentPredTicks(int vehicle, long& ttv, long& ttpnr) const;
+    PredictParams           predParams_;
+    std::vector<Prediction> predCache_;      // latest TTV + polyline
+    std::vector<long>       predBaseStep_;   // step_ at which each cache entry was made
+    std::vector<long>       ttpnrTicks_;     // latest PNR result (separate cadence)
+    std::vector<long>       ttpnrBaseStep_;
+    std::vector<double>     minTtpnrMs_;     // run-min of finite aged TTPNR (-1 = none)
+    std::vector<long>       pastPnrTicks_;   // ticks spent at aged TTPNR == 0
 
     // --- Predictor fidelity gate state (params_.validatePredictor) ---
     void validatePredictions();

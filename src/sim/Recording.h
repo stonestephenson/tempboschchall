@@ -22,6 +22,12 @@ struct Frame {
     float    vel          = 0.0f;
     float    rolling_real = 0.0f;
     float    average_real = 0.0f;
+    // v4: full physical state + aged predictions, so the prediction overlay
+    // can be recomputed while scrubbing a replay (PREDICTOR.md). ttv/ttpnr
+    // are -1 in recordings loaded from older formats ("no prediction data").
+    float    phys[6]      = {};    // [yaw rate, slip, steer angle, steer rate, e_y, e_y_dot]
+    float    ttv_ms       = -1.0f;
+    float    ttpnr_ms     = -1.0f;
     uint8_t  flags        = 0;     // bit0 soft, bit1 hard, bit2 critical
 
     enum : uint8_t { kSoft = 1, kHard = 2, kCritical = 4 };
@@ -35,6 +41,8 @@ struct VehicleSummary {
     int    hard_violations     = 0;    // recorded frames with |e_y| over hard bound
     double max_data_age_ms     = -1.0; // worst-case data age, freshest convention; -1 = none
     double max_data_age_oldest_ms = -1.0;  // oldest-direct (path) convention; -1 = none
+    double min_ttpnr_ms        = -1.0; // closest call: run-min of finite TTPNR; -1 = never finite
+    long   past_pnr_ticks      = 0;    // ticks spent past the predicted point of no return
 };
 
 struct RunRecording {
@@ -48,6 +56,10 @@ struct RunRecording {
     long   missedJobs     = 0;
     std::string schedulerName;
     std::vector<long> startOffsets;        // per vehicle
+    // Format version this recording was loaded from (current version when
+    // freshly recorded; not serialized). < 4 means frames carry no physical
+    // state, so the replay prediction overlay is unavailable.
+    int    loadedVersion  = 4;
 
     // --- data ---
     std::vector<std::vector<Frame>> frames;   // frames[vehicle][sample]

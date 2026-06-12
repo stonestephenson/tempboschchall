@@ -8,9 +8,11 @@ namespace cps {
 namespace {
 
 constexpr char    kMagic[4] = {'C', 'P', 'S', 'R'};
-constexpr int32_t kVersion  = 3;  // v2: +max_data_age_ms; v3: +max_data_age_oldest_ms
+// v2: +VehicleSummary.max_data_age_ms; v3: +max_data_age_oldest_ms;
+// v4: +Frame.phys/ttv_ms/ttpnr_ms, +VehicleSummary.min_ttpnr_ms/past_pnr_ticks.
+constexpr int32_t kVersion  = 4;
 
-// The on-disk VehicleSummary layout of format v2, for loading old recordings.
+// On-disk layouts of older formats, for loading old recordings.
 struct VehicleSummaryV2 {
     double average_real;
     double max_rolling_real;
@@ -18,6 +20,26 @@ struct VehicleSummaryV2 {
     double soft_violation_pct;
     int    hard_violations;
     double max_data_age_ms;
+};
+struct VehicleSummaryV3 {
+    double average_real;
+    double max_rolling_real;
+    int    threshold_cntr_real;
+    double soft_violation_pct;
+    int    hard_violations;
+    double max_data_age_ms;
+    double max_data_age_oldest_ms;
+};
+struct FrameV3 {  // Frame layout of formats v2 and v3
+    float    t;
+    uint32_t refStep;
+    float    e_y_real;
+    float    e_y_est;
+    float    act;
+    float    vel;
+    float    rolling_real;
+    float    average_real;
+    uint8_t  flags;
 };
 
 template <typename T>
@@ -82,7 +104,7 @@ RunRecording RunRecording::load(const std::string& path) {
     if (std::memcmp(magic, kMagic, 4) != 0)
         throw std::runtime_error("RunRecording: bad magic in " + path);
     const int32_t version = get<int32_t>(is);
-    if (version != 2 && version != kVersion)
+    if (version < 2 || version > kVersion)
         throw std::runtime_error("RunRecording: unsupported version in " + path);
 
     RunRecording r;
@@ -102,17 +124,26 @@ RunRecording RunRecording::load(const std::string& path) {
     const int32_t nSum = get<int32_t>(is);
     r.summary.resize(nSum);
     for (int i = 0; i < nSum; ++i) {
+        VehicleSummary& s = r.summary[i];
         if (version == 2) {
             const VehicleSummaryV2 s2 = get<VehicleSummaryV2>(is);
-            VehicleSummary& s = r.summary[i];
             s.average_real        = s2.average_real;
             s.max_rolling_real    = s2.max_rolling_real;
             s.threshold_cntr_real = s2.threshold_cntr_real;
             s.soft_violation_pct  = s2.soft_violation_pct;
             s.hard_violations     = s2.hard_violations;
             s.max_data_age_ms     = s2.max_data_age_ms;
+        } else if (version == 3) {
+            const VehicleSummaryV3 s3 = get<VehicleSummaryV3>(is);
+            s.average_real        = s3.average_real;
+            s.max_rolling_real    = s3.max_rolling_real;
+            s.threshold_cntr_real = s3.threshold_cntr_real;
+            s.soft_violation_pct  = s3.soft_violation_pct;
+            s.hard_violations     = s3.hard_violations;
+            s.max_data_age_ms     = s3.max_data_age_ms;
+            s.max_data_age_oldest_ms = s3.max_data_age_oldest_ms;
         } else {
-            r.summary[i] = get<VehicleSummary>(is);
+            s = get<VehicleSummary>(is);
         }
     }
 
@@ -121,10 +152,27 @@ RunRecording RunRecording::load(const std::string& path) {
     for (int v = 0; v < nVeh; ++v) {
         const int64_t cnt = get<int64_t>(is);
         r.frames[v].resize(static_cast<size_t>(cnt));
-        if (cnt > 0)
+        if (cnt <= 0) continue;
+        if (version <= 3) {
+            for (int64_t i = 0; i < cnt; ++i) {
+                const FrameV3 f3 = get<FrameV3>(is);
+                Frame& f = r.frames[v][static_cast<size_t>(i)];
+                f.t            = f3.t;
+                f.refStep      = f3.refStep;
+                f.e_y_real     = f3.e_y_real;
+                f.e_y_est      = f3.e_y_est;
+                f.act          = f3.act;
+                f.vel          = f3.vel;
+                f.rolling_real = f3.rolling_real;
+                f.average_real = f3.average_real;
+                f.flags        = f3.flags;  // phys stays 0, ttv/ttpnr stay -1
+            }
+        } else {
             is.read(reinterpret_cast<char*>(r.frames[v].data()),
                     static_cast<std::streamsize>(cnt * sizeof(Frame)));
+        }
     }
+    r.loadedVersion = version;
     return r;
 }
 

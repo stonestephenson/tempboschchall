@@ -73,19 +73,65 @@ void Simulation::start() {
     maxRolling_.assign(n, 0.0);
     hardCount_.assign(n, 0);
 
+    predParams_ = PredictParams{};
+    predParams_.deltaMax = params_.deltaMax;  // <= 0 -> calibrated default
+    predCache_.assign(n, Prediction{});
+    predBaseStep_.assign(n, -1);
+    ttpnrTicks_.assign(n, predParams_.horizonTicks);
+    ttpnrBaseStep_.assign(n, -1);
+    minTtpnrMs_.assign(n, -1.0);
+    pastPnrTicks_.assign(n, 0);
+
     step_ = 0;
     finalized_ = false;
     started_ = true;
 }
 
+void Simulation::refreshPredictions(bool withPnr) {
+    PredictParams p = predParams_;
+    p.computePnr = withPnr;
+    for (size_t v = 0; v < vehicles_.size(); ++v) {
+        const VehicleOutputs& o = vehicles_[v].out;
+        predCache_[v] = predictHold(o.phys, o.act_out, step_ + 1, *traj_,
+                                    offsets_[v], p);
+        predBaseStep_[v] = step_;
+        if (withPnr) {
+            ttpnrTicks_[v] = predCache_[v].ttpnrTicks;
+            ttpnrBaseStep_[v] = step_;
+        }
+    }
+}
+
+void Simulation::currentPredTicks(int v, long& ttv, long& ttpnr) const {
+    const long H = predParams_.horizonTicks;
+    const size_t i = static_cast<size_t>(v);
+    if (predBaseStep_[i] < 0) {
+        ttv = H;
+    } else {
+        const long e = step_ - predBaseStep_[i];
+        ttv = predCache_[i].ttvTicks >= H ? H : std::max<long>(0, predCache_[i].ttvTicks - e);
+    }
+    if (ttpnrBaseStep_[i] < 0) {
+        ttpnr = H;
+    } else {
+        const long e = step_ - ttpnrBaseStep_[i];
+        ttpnr = ttpnrTicks_[i] >= H ? H : std::max<long>(0, ttpnrTicks_[i] - e);
+    }
+    // TTPNR can never exceed TTV (PNR precedes the violation).
+    if (ttpnr > ttv) ttpnr = ttv;
+}
+
 void Simulation::buildViews() {
     for (size_t v = 0; v < vehicles_.size(); ++v) {
         const VehicleOutputs& o = vehicles_[v].out;
+        long ttv, ttpnr;
+        currentPredTicks(static_cast<int>(v), ttv, ttpnr);
         views_[v] = VehicleView{static_cast<int>(v), vehicles_[v].curVel,
                                 o.e_y_real, o.e_y_est, o.rolling_real, o.rolling_remote,
                                 o.average_real, o.threshold_cntr_real,
                                 o.critical_real, o.violated_real,
-                                o.critical_remote, o.violated_remote};
+                                o.critical_remote, o.violated_remote,
+                                ttv * dt_ * 1000.0, ttpnr * dt_ * 1000.0};
     }
 }
 
@@ -117,6 +163,20 @@ bool Simulation::step() {
 
     if (params_.validatePredictor) validatePredictions();
 
+    // 3b. Refresh held-command predictions and accumulate closest-call stats.
+    if (step_ % kPredictRefreshTicks == 0)
+        refreshPredictions(/*withPnr=*/step_ % kPnrRefreshTicks == 0);
+    for (size_t v = 0; v < vehicles_.size(); ++v) {
+        if (predBaseStep_[v] < 0) continue;
+        long ttv, ttpnr;
+        currentPredTicks(static_cast<int>(v), ttv, ttpnr);
+        if (ttpnr < predParams_.horizonTicks) {
+            const double ms = ttpnr * dt_ * 1000.0;
+            if (minTtpnrMs_[v] < 0.0 || ms < minTtpnrMs_[v]) minTtpnrMs_[v] = ms;
+            if (ttpnr == 0) ++pastPnrTicks_[v];
+        }
+    }
+
     // 4. Record a decimated frame.
     if (step_ % params_.decimation == 0) recordFrame(t);
 
@@ -137,6 +197,13 @@ void Simulation::recordFrame(double t) {
         f.vel          = static_cast<float>(vehicles_[v].curVel);
         f.rolling_real = static_cast<float>(o.rolling_real);
         f.average_real = static_cast<float>(o.average_real);
+        for (int i = 0; i < 6; ++i) f.phys[i] = static_cast<float>(o.phys[i]);
+        if (predBaseStep_[v] >= 0) {
+            long ttv, ttpnr;
+            currentPredTicks(static_cast<int>(v), ttv, ttpnr);
+            f.ttv_ms   = static_cast<float>(ttv * dt_ * 1000.0);
+            f.ttpnr_ms = static_cast<float>(ttpnr * dt_ * 1000.0);
+        }
 
         const double absEy = std::fabs(o.e_y_real);
         uint8_t flags = 0;
@@ -180,6 +247,7 @@ void Simulation::validatePredictions() {
             p.horizonTicks = 400;  // covers the ~30 ms actuator hold
             p.vizStride = 1;
             p.computePnr = false;
+            p.velQuantum = 0.0;  // exact model: the gate validates the true port
             pv.pred = predictHold(o.phys, o.act_out, step_ + 1, *traj_,
                                   offsets_[v], p);
             pv.madeAtStep = step_;
@@ -205,6 +273,8 @@ void Simulation::finalizeSummary() {
         s.max_data_age_ms     = ageTicks < 0 ? -1.0 : ageTicks * dt_ * 1000.0;
         const long ageOldTicks = scheduler_->maxDataAgeOldestTicks(static_cast<int>(v));
         s.max_data_age_oldest_ms = ageOldTicks < 0 ? -1.0 : ageOldTicks * dt_ * 1000.0;
+        s.min_ttpnr_ms   = minTtpnrMs_[v];
+        s.past_pnr_ticks = pastPnrTicks_[v];
     }
     rec_.missedJobs = scheduler_->missedJobs();
     finalized_ = true;
@@ -225,8 +295,9 @@ void Simulation::runToCompletion(bool verbose) {
                     rec_.duration(), secs, secs > 0 ? rec_.duration() / secs : 0.0);
         std::printf("  scheduler: %s   missed jobs: %ld\n",
                     rec_.schedulerName.c_str(), rec_.missedJobs);
-        std::printf("  %-4s %12s %12s %10s %10s %13s %13s\n", "veh", "avg_perf", "max_roll",
-                    "soft%", "hard", "age_fresh(ms)", "age_path(ms)");
+        std::printf("  %-4s %12s %12s %10s %10s %13s %13s %12s %9s\n", "veh", "avg_perf",
+                    "max_roll", "soft%", "hard", "age_fresh(ms)", "age_path(ms)",
+                    "min_pnr(ms)", "pnr0(ms)");
         double worstAgeMs = -1.0, worstAgeOldMs = -1.0;
         auto fmtAge = [](char* buf, size_t n, double v) {
             if (v < 0.0) std::snprintf(buf, n, "%13s", "n/a");
@@ -236,12 +307,15 @@ void Simulation::runToCompletion(bool verbose) {
             const VehicleSummary& s = rec_.summary[v];
             if (s.max_data_age_ms > worstAgeMs) worstAgeMs = s.max_data_age_ms;
             if (s.max_data_age_oldest_ms > worstAgeOldMs) worstAgeOldMs = s.max_data_age_oldest_ms;
-            char ageBuf[24], ageOldBuf[24];
+            char ageBuf[24], ageOldBuf[24], pnrBuf[24];
             fmtAge(ageBuf, sizeof ageBuf, s.max_data_age_ms);
             fmtAge(ageOldBuf, sizeof ageOldBuf, s.max_data_age_oldest_ms);
-            std::printf("  %-4d %12.5f %12.5f %9.2f%% %10d %s %s\n", v, s.average_real,
-                        s.max_rolling_real, s.soft_violation_pct, s.hard_violations,
-                        ageBuf, ageOldBuf);
+            if (s.min_ttpnr_ms < 0.0) std::snprintf(pnrBuf, sizeof pnrBuf, "%12s", "-");
+            else                      std::snprintf(pnrBuf, sizeof pnrBuf, "%12.1f", s.min_ttpnr_ms);
+            std::printf("  %-4d %12.5f %12.5f %9.2f%% %10d %s %s %s %9.1f\n", v,
+                        s.average_real, s.max_rolling_real, s.soft_violation_pct,
+                        s.hard_violations, ageBuf, ageOldBuf, pnrBuf,
+                        s.past_pnr_ticks * dt_ * 1000.0);
         }
         if (worstAgeMs >= 0.0)
             std::printf("  worst-case data age: %.2f ms (freshest) / %.2f ms (path)\n",

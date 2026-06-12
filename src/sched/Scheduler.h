@@ -42,6 +42,13 @@ struct VehicleView {
     bool   violated_real   = false;
     bool   critical_remote = false;  // cloud's (estimated) view of the above
     bool   violated_remote = false;
+    // Held-command predictions (PREDICTOR.md): time until |e_y| crosses the
+    // hard bound (TTV) and until recovery becomes impossible (TTPNR), in ms.
+    // Values at the prediction horizon (500 ms) mean "not within horizon";
+    // ttpnr_ms == 0 means the car is past its (assumed-limit) point of no
+    // return. Larger = less urgent, so policies can rank on these directly.
+    double ttv_ms          = 500.0;
+    double ttpnr_ms        = 500.0;
 };
 
 class Scheduler {

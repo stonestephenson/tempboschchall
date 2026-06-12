@@ -30,7 +30,7 @@ using namespace cps;
 
 namespace {
 
-std::unique_ptr<CorePolicy> makePolicy(const std::string& name) {
+std::unique_ptr<CorePolicy> makePolicy(const std::string& name, bool triage) {
     if (name == "edf")     return makeEdfPolicy();
     if (name == "context" || name == "ctx" || name == "adaptive")
                            return makeContextAwarePolicy();  // oracle (reads *_real)
@@ -38,6 +38,8 @@ std::unique_ptr<CorePolicy> makePolicy(const std::string& name) {
                            return makeContextAwareHonestPolicy();
     if (name == "prm" || name == "partitioned")
                            return makePartitionedRMPolicy();
+    if (name == "ttu" || name == "predictive")
+                           return makeTimeToUnsafePolicy(triage);
     return makeRateMonotonicPolicy();  // "rm" / default
 }
 
@@ -73,16 +75,17 @@ void appendCsv(const std::string& path, const RunRecording& rec,
     if (std::ftell(f) == 0)
         std::fprintf(f, "scheduler,profile,vehicles,cores,exec,overrun,net_delay_ms,seed,"
                         "duration_s,missed_jobs,veh,avg_perf,max_roll,soft_pct,hard,"
-                        "max_age_fresh_ms,max_age_path_ms\n");
+                        "max_age_fresh_ms,max_age_path_ms,min_ttpnr_ms,past_pnr_ms\n");
     for (int v = 0; v < rec.nVehicles; ++v) {
         const VehicleSummary& s = rec.summary[v];
-        std::fprintf(f, "%s,%s,%d,%d,%s,%s,%.2f,%llu,%.3f,%ld,%d,%.6f,%.6f,%.4f,%d,%.2f,%.2f\n",
+        std::fprintf(f, "%s,%s,%d,%d,%s,%s,%.2f,%llu,%.3f,%ld,%d,%.6f,%.6f,%.4f,%d,%.2f,%.2f,%.2f,%.1f\n",
                      scheduler.c_str(), profileName(static_cast<Profile>(rec.profile)),
                      rec.nVehicles, rec.nCores, exec.c_str(), overrun.c_str(),
                      netDelayMs, static_cast<unsigned long long>(seed), rec.duration(),
                      rec.missedJobs, v, s.average_real, s.max_rolling_real,
                      s.soft_violation_pct, s.hard_violations,
-                     s.max_data_age_ms, s.max_data_age_oldest_ms);
+                     s.max_data_age_ms, s.max_data_age_oldest_ms,
+                     s.min_ttpnr_ms, s.past_pnr_ticks * rec.baseStep * 1000.0);
     }
     std::fclose(f);
 }
@@ -101,8 +104,9 @@ bool hasFlag(int argc, char** argv, const char* key) {
 void usage() {
     std::printf(
         "CPS Challenge Visualizer\n"
-        "  --scheduler rm|prm|edf|context|honest   scheduling policy (default rm;\n"
-        "                               context = oracle, honest = remote metrics only)\n"
+        "  --scheduler rm|prm|edf|context|honest|ttu   scheduling policy (default rm;\n"
+        "                               context = oracle, honest = remote metrics only,\n"
+        "                               ttu = predictive time-to-unsafe ranking)\n"
         "  --vehicles N                 number of vehicles (default 1)\n"
         "  --cores N                    shared cloud cores (default 3)\n"
         "  --profile 10|12.5|15         speed profile (default 10)\n"
@@ -112,6 +116,11 @@ void usage() {
         "                               skip = overrunning job finishes, releases skipped)\n"
         "  --net-delay MS               fix BOTH network delays to MS (overrides --exec\n"
         "                               for the networks; for delay-tolerance sweeps)\n"
+        "  --delta-max RAD              assumed steering limit for recoverability\n"
+        "                               predictions (default: calibrated per profile)\n"
+        "  --triage                     ttu only: drop past-PNR cars to lowest priority\n"
+        "                               instead of boosting them\n"
+        "  --validate-predictor         predictor fidelity gate (see PREDICTOR.md)\n"
         "  --seed N                     RNG seed for pert mode (default 0)\n"
         "  --headless                   run without the GUI, print metrics\n"
         "  --csv FILE                   append per-vehicle summary rows to FILE\n"
@@ -154,6 +163,8 @@ int main(int argc, char** argv) {
         params.overrun       = parseOverrun(overrunName);
         params.netDelayMs    = std::atof(argValue(argc, argv, "--net-delay", "-1"));
         params.validatePredictor = hasFlag(argc, argv, "--validate-predictor");
+        params.deltaMax      = std::atof(argValue(argc, argv, "--delta-max", "-1"));
+        params.triage        = hasFlag(argc, argv, "--triage");
         params.seed          = static_cast<uint64_t>(std::atoll(argValue(argc, argv, "--seed", "0")));
         const double durSec  = std::atof(argValue(argc, argv, "--duration", "0"));
         if (durSec > 0) params.durationSteps =
@@ -161,7 +172,7 @@ int main(int argc, char** argv) {
 
         const std::string schedName = argValue(argc, argv, "--scheduler", "rm");
         const std::string csvFile   = argValue(argc, argv, "--csv", "");
-        auto scheduler = std::make_unique<PolicyScheduler>(makePolicy(schedName));
+        auto scheduler = std::make_unique<PolicyScheduler>(makePolicy(schedName, params.triage));
 
         Simulation sim(params, std::move(scheduler));
 

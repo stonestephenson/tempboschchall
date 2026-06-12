@@ -25,10 +25,15 @@ struct PredictParams {
     double deltaMax = -1.0;
     long   horizonTicks         = 5000;   // 500 ms lookahead cap
     long   recoveryLatencyTicks = 40;     // fresh command pipeline delay (~4 ms BC chain)
-    long   recoveryWindowTicks  = 20000;  // recovery must hold |e_y| < hard for 2 s
+    long   recoveryWindowTicks  = 10000;  // recovery must hold |e_y| < hard for 1 s
     long   pnrSearchStrideTicks = 50;     // TTPNR binary-search resolution (5 ms)
     int    vizStride            = 10;     // e_y polyline decimation (1 ms)
     bool   computePnr           = true;   // false: TTV/polyline only (validation mode)
+    // Velocity grid for the shared matrix cache (m/s). The plant matrices are
+    // recomputed per velocity change; quantizing to 0.01 m/s makes rollouts
+    // ~10x cheaper at a sub-millimeter effect on predicted e_y. 0 = exact
+    // (used by --validate-predictor so the fidelity gate checks the true model).
+    double velQuantum           = 0.01;
 };
 
 // Result of one held-command prediction, relative to `fromStep` (the first

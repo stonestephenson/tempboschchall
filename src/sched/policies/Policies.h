@@ -33,4 +33,10 @@ std::unique_ptr<CorePolicy> makeEdfPolicy();
 std::unique_ptr<CorePolicy> makeContextAwarePolicy();        // oracle
 std::unique_ptr<CorePolicy> makeContextAwareHonestPolicy();  // honest
 
+// Predictive: ranks vehicles by time-to-point-of-no-return (then
+// time-to-violation) from the held-command plant rollouts — the physically-
+// derived dynamic deadline (PREDICTOR.md). `triage` drops past-PNR cars to
+// the bottom instead of boosting them.
+std::unique_ptr<CorePolicy> makeTimeToUnsafePolicy(bool triage);
+
 }  // namespace cps

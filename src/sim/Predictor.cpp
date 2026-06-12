@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <unordered_map>
 
 namespace cps {
 namespace {
@@ -9,6 +11,11 @@ namespace {
 constexpr double kHardBound = 0.8;   // |e_y| hard safety bound, m
 constexpr double kSoftBound = 0.2;   // comfort bound, used for recovery early-exit
 constexpr double kVelTol    = 1e-6;  // FMU's velocity-change tolerance (TOL)
+
+// Production rollouts advance in 1 ms blocks (10 base ticks) using a
+// precomputed 10-step affine composition per velocity cell — ~10x cheaper at
+// 1 ms TTV/TTPNR resolution. Validation (velQuantum == 0) steps tick-exactly.
+constexpr long kCoarseTicks = 10;
 
 // ---------------------------------------------------------------------------
 // Plant model, ported VERBATIM from the FMU source so rollouts are tick-exact
@@ -19,7 +26,7 @@ constexpr double kVelTol    = 1e-6;  // FMU's velocity-change tolerance (TOL)
 //   * state update of simulate_lateral_motion_control_step (:576-600):
 //     x+ = Ad(v) x + Bd(v) u + Fd(v) r, dt = 0.1 ms, noise off.
 // Do not "simplify" the coefficient expressions — bit-identical arithmetic is
-// what makes the fidelity gate pass at ~1e-12.
+// what makes the fidelity gate pass at the float-storage floor.
 // ---------------------------------------------------------------------------
 struct Matrices {
     double Ad[6][6];
@@ -101,37 +108,123 @@ void computeMatrices(double v, Matrices& mm) {
     Fd_out[5][1] = 0.00002*v_2;
 }
 
-// Velocity-cached plant. refresh() mirrors the FMU's fmi2SetReal velocity
-// guard (update only when the change exceeds TOL) + per-doStep matrix update.
+// One velocity cell of the shared cache: the exact per-tick matrices plus the
+// kCoarseTicks-step affine composition. With u and r held over a block,
+//   x_{n+k} = Ad^k x_n + (sum_{i<k} Ad^i)(Bd u + Fd r),
+// so one coarse step costs the same as one fine step but advances 1 ms.
+struct CacheCell {
+    Matrices fine;
+    double Adc[6][6];  // Ad^kCoarseTicks
+    double Bc[6];      // (sum_{i<kCoarseTicks} Ad^i) Bd
+    double Fc[6][2];   // (sum_{i<kCoarseTicks} Ad^i) Fd
+};
+
+void buildCell(double v, CacheCell& c) {
+    computeMatrices(v, c.fine);
+    double P[6][6], S[6][6], T[6][6];
+    for (int i = 0; i < 6; ++i)
+        for (int j = 0; j < 6; ++j) P[i][j] = S[i][j] = (i == j) ? 1.0 : 0.0;
+    for (int it = 1; it < kCoarseTicks; ++it) {
+        // P <- Ad * P (P becomes Ad^it); S += P.
+        for (int i = 0; i < 6; ++i)
+            for (int j = 0; j < 6; ++j) {
+                double s = 0.0;
+                for (int k = 0; k < 6; ++k) s += c.fine.Ad[i][k] * P[k][j];
+                T[i][j] = s;
+            }
+        for (int i = 0; i < 6; ++i)
+            for (int j = 0; j < 6; ++j) { P[i][j] = T[i][j]; S[i][j] += T[i][j]; }
+    }
+    for (int i = 0; i < 6; ++i)
+        for (int j = 0; j < 6; ++j) {
+            double s = 0.0;
+            for (int k = 0; k < 6; ++k) s += c.fine.Ad[i][k] * P[k][j];
+            c.Adc[i][j] = s;  // Ad^kCoarseTicks
+        }
+    for (int i = 0; i < 6; ++i) {
+        double sb = 0.0, sf0 = 0.0, sf1 = 0.0;
+        for (int k = 0; k < 6; ++k) {
+            sb  += S[i][k] * c.fine.Bd[k];
+            sf0 += S[i][k] * c.fine.Fd[k][0];
+            sf1 += S[i][k] * c.fine.Fd[k][1];
+        }
+        c.Bc[i]    = sb;
+        c.Fc[i][0] = sf0;
+        c.Fc[i][1] = sf1;
+    }
+}
+
+// Process-wide cache on a quantized velocity grid. The sim and the visualizer
+// run in one thread (the viz loop drives sim.step), so no locking is needed;
+// size is bounded by the trajectory's velocity range (~500 cells).
+const CacheCell& cachedCell(double v, double quantum) {
+    static std::unordered_map<long, CacheCell> cache;
+    const long key = std::lround(v / quantum);
+    auto it = cache.find(key);
+    if (it == cache.end()) {
+        it = cache.emplace(key, CacheCell{}).first;
+        buildCell(static_cast<double>(key) * quantum, it->second);
+    }
+    return it->second;
+}
+
+// Velocity-tracking plant. Quantized mode (quantum > 0) advances in coarse
+// 1 ms blocks from the shared cache; exact mode (quantum == 0, used by the
+// fidelity gate) recomputes matrices on every velocity change (mirroring the
+// FMU's TOL guard) and steps tick-by-tick.
 struct Model {
-    Matrices m{};
-    double cachedV = -1e9;
+    explicit Model(double q) : quantum(q) {}
+
+    double quantum;
+    Matrices exact{};
+    const CacheCell* cell = nullptr;
+    bool   haveExact = false;
+    long   cachedKey = std::numeric_limits<long>::min();
+    double cachedV   = -1e9;
+
+    // Ticks advanced by one call to step().
+    long strideTicks() const { return quantum > 0.0 ? kCoarseTicks : 1; }
 
     void refresh(double v) {
-        if (std::fabs(v - cachedV) > kVelTol) {
-            computeMatrices(v, m);
-            cachedV = v;
+        if (quantum > 0.0) {
+            const long key = std::lround(v / quantum);
+            if (cell && key == cachedKey) return;  // same grid cell: no lookup
+            cell = &cachedCell(v, quantum);
+            cachedKey = key;
+            return;
         }
+        if (haveExact && std::fabs(v - cachedV) <= kVelTol) return;
+        computeMatrices(v, exact);
+        haveExact = true;
+        cachedV = v;
     }
 
-    // x+ = Ad x + Bd u + Fd r  (mirrors simulate_lateral_motion_control_step)
+    // Advance strideTicks() ticks with u and r held over the block.
     void step(double x[6], double u, double r0, double r1) const {
         double nx[6];
-        for (int i = 0; i < 6; ++i) {
-            double s = 0.0;
-            for (int j = 0; j < 6; ++j) s += m.Ad[i][j] * x[j];
-            nx[i] = s + m.Bd[i] * u + m.Fd[i][0] * r0 + m.Fd[i][1] * r1;
+        if (quantum > 0.0) {
+            for (int i = 0; i < 6; ++i) {
+                double s = 0.0;
+                for (int j = 0; j < 6; ++j) s += cell->Adc[i][j] * x[j];
+                nx[i] = s + cell->Bc[i] * u + cell->Fc[i][0] * r0 + cell->Fc[i][1] * r1;
+            }
+        } else {
+            for (int i = 0; i < 6; ++i) {
+                double s = 0.0;
+                for (int j = 0; j < 6; ++j) s += exact.Ad[i][j] * x[j];
+                nx[i] = s + exact.Bd[i] * u + exact.Fd[i][0] * r0 + exact.Fd[i][1] * r1;
+            }
         }
         for (int i = 0; i < 6; ++i) x[i] = nx[i];
     }
 };
 
 // Which steering sign reduces a positive lateral error. Determined once by
-// probing the model (apply +0.1 rad from rest at v = 10 for 0.5 s and observe
-// the e_y response) so the recovery law never depends on a hand-assumed sign
-// convention.
+// probing the exact model (apply +0.1 rad from rest at v = 10 for 0.5 s and
+// observe the e_y response) so the recovery law never depends on a
+// hand-assumed sign convention.
 double steerSignForReducingError() {
-    Model probe;
+    Model probe(0.0);
     probe.refresh(10.0);
     double x[6] = {0, 0, 0, 0, 0, 0};
     for (int k = 0; k < 5000; ++k) probe.step(x, 0.1, 0.0, 0.0);
@@ -154,25 +247,27 @@ double recoveryCommand(const double x[6], double deltaMax, double steerSign) {
 bool recoverable(const double xStart[6], double heldCmd, long stepAt,
                  const Trajectory& traj, long trajOffset,
                  const PredictParams& p, double deltaMax, double steerSign) {
-    Model model;
+    Model model(p.velQuantum);
+    const long c = model.strideTicks();
     double x[6];
     for (int i = 0; i < 6; ++i) x[i] = xStart[i];
 
     long s = stepAt;
-    for (long k = 0; k < p.recoveryLatencyTicks; ++k, ++s) {
+    for (long k = 0; k < p.recoveryLatencyTicks; k += c, s += c) {
         const Trajectory::Inputs in = traj.inputsAt(s + trajOffset);
         model.refresh(in.vel);
         model.step(x, heldCmd, in.ff0, in.ff1);
         if (std::fabs(x[4]) >= kHardBound) return false;
     }
-    for (long k = 0; k < p.recoveryWindowTicks; ++k, ++s) {
+    for (long k = 0; k < p.recoveryWindowTicks; k += c, s += c) {
         const Trajectory::Inputs in = traj.inputsAt(s + trajOffset);
         model.refresh(in.vel);
         model.step(x, recoveryCommand(x, deltaMax, steerSign), in.ff0, in.ff1);
-        if (std::fabs(x[4]) >= kHardBound) return false;
-        // Settled well inside the comfort band -> call it recovered.
-        if (k > 1000 && std::fabs(x[4]) < kSoftBound && std::fabs(x[5]) < 0.05)
-            return true;
+        const double absE = std::fabs(x[4]);
+        if (absE >= kHardBound) return false;
+        // Back inside the comfort band under full authority -> recovered.
+        // (Bang-bang keeps e_y_dot oscillating, so don't require it small.)
+        if (k >= 500 && absE < kSoftBound) return true;
     }
     return true;  // survived the whole window without breaching
 }
@@ -203,30 +298,41 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
     out.fromStep = fromStep;
     out.ttvTicks = params.horizonTicks;
 
-    Model model;
+    Model model(params.velQuantum);
+    const long c = model.strideTicks();
+    // Output cadences must align to the stepping block (true for the defaults:
+    // vizStride 10, pnrSearchStrideTicks 50, coarse block 10; validation: 1/1).
+    const long vizStride  = std::max<long>(params.vizStride, c);
+    const long snapStride = std::max<long>(params.pnrSearchStrideTicks, c);
+
     double x[6];
     for (int i = 0; i < 6; ++i) x[i] = x0[i];
 
     // --- Held-command rollout: e_y polyline, TTV, and snapshots for the PNR
     //     search (so recovery rollouts never re-simulate the hold prefix). ---
-    out.e_y.reserve(static_cast<size_t>(params.horizonTicks / params.vizStride) + 1);
+    out.e_y.reserve(static_cast<size_t>(params.horizonTicks / vizStride) + 1);
     out.e_y.push_back(static_cast<float>(x[4]));
 
-    const long stride = std::max<long>(1, params.pnrSearchStrideTicks);
-    std::vector<double> snaps;  // 6 doubles per snapshot, at ticks 0, stride, 2*stride, ...
-    snaps.reserve(static_cast<size_t>(params.horizonTicks / stride + 2) * 6);
+    std::vector<double> snaps;  // 6 doubles per snapshot, at ticks 0, snapStride, ...
+    snaps.reserve(static_cast<size_t>(params.horizonTicks / snapStride + 2) * 6);
     for (int i = 0; i < 6; ++i) snaps.push_back(x[i]);
 
-    for (long k = 1; k <= params.horizonTicks; ++k) {
-        const Trajectory::Inputs in = traj.inputsAt(fromStep + (k - 1) + trajOffset);
+    if (std::fabs(x[4]) >= kHardBound) out.ttvTicks = 0;  // already violating
+
+    // Keep rolling a while past the crossing (the overlay shows where the car
+    // goes), but not the full horizon — diverged vehicles would waste it.
+    constexpr long kPostViolationTicks = 1000;  // 100 ms
+    for (long k = c; k <= params.horizonTicks; k += c) {
+        if (k > out.ttvTicks + kPostViolationTicks) break;
+        const Trajectory::Inputs in = traj.inputsAt(fromStep + (k - c) + trajOffset);
         model.refresh(in.vel);
         model.step(x, heldCmd, in.ff0, in.ff1);
 
-        if (k % params.vizStride == 0) out.e_y.push_back(static_cast<float>(x[4]));
-        if (k % stride == 0)
+        if (k % vizStride == 0) out.e_y.push_back(static_cast<float>(x[4]));
+        if (k % snapStride == 0)
             for (int i = 0; i < 6; ++i) snaps.push_back(x[i]);
         if (out.ttvTicks == params.horizonTicks && std::fabs(x[4]) >= kHardBound)
-            out.ttvTicks = k;  // keep rolling: the full polyline is still useful
+            out.ttvTicks = k;
     }
 
     if (!params.computePnr) {
@@ -239,15 +345,15 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
     //     PREDICTOR.md), so binary search over the snapshot grid applies. ---
     auto recoverableAt = [&](long snapIdx) {
         return recoverable(&snaps[static_cast<size_t>(snapIdx) * 6], heldCmd,
-                           fromStep + snapIdx * stride, traj, trajOffset,
+                           fromStep + snapIdx * snapStride, traj, trajOffset,
                            params, deltaMax, kSteerSign);
     };
 
     const long lastSnap = static_cast<long>(snaps.size() / 6) - 1;
     // Only hold times strictly before the violation can be recovery starts.
     const long capTicks = std::min(out.ttvTicks, params.horizonTicks);
-    long hi = std::min(lastSnap, capTicks / stride);
-    while (hi > 0 && hi * stride >= capTicks) --hi;
+    long hi = std::min(lastSnap, capTicks / snapStride);
+    while (hi > 0 && hi * snapStride >= capTicks) --hi;
 
     if (!recoverableAt(0)) {
         out.ttpnrTicks = 0;
@@ -258,7 +364,7 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
         // Recoverable right up to the cap: if no violation was even found in
         // the horizon, report "ttpnr >= horizon"; else the last grid point.
         out.ttpnrTicks = (out.ttvTicks >= params.horizonTicks) ? params.horizonTicks
-                                                               : hi * stride;
+                                                               : hi * snapStride;
         return out;
     }
     long lo = 0;  // invariant: recoverableAt(lo) && !recoverableAt(hi)
@@ -266,7 +372,7 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
         const long mid = lo + (hi - lo) / 2;
         if (recoverableAt(mid)) lo = mid; else hi = mid;
     }
-    out.ttpnrTicks = lo * stride;
+    out.ttpnrTicks = lo * snapStride;
     return out;
 }
 
