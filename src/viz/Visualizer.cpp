@@ -39,7 +39,10 @@ const Color kBg{18, 18, 24, 255};
 }  // namespace
 
 Visualizer::Visualizer(std::shared_ptr<Trajectory> traj, const VizConfig& cfg)
-    : traj_(std::move(traj)), cfg_(cfg), exag_(cfg.exaggeration) {}
+    : traj_(std::move(traj)), cfg_(cfg), selected_(std::max(0, cfg.initialSelected)),
+      exag_(cfg.exaggeration) {
+    playbackSpeed_ = std::max(0.1, cfg.initialSpeed);
+}
 
 void Visualizer::replay(const RunRecording& rec) {
     rec_ = &rec;
@@ -187,9 +190,68 @@ void Visualizer::drawScene() {
     drawTrack();
     if (haveData) {
         drawVehiclePaths();
+        drawPrediction();
         drawCars();
     }
     EndMode2D();
+}
+
+const Prediction* Visualizer::currentPrediction() {
+    if (rec_->frames[selected_].empty()) return nullptr;
+    if (sim_ && !sim_->finished())
+        return &sim_->prediction(selected_);  // live: the 10 ms cache
+
+    // Replay (or scrubbing a finished run): recompute from the frame's stored
+    // physical state + held command. Needs format >= 4 frames.
+    if (rec_->loadedVersion < 4) return nullptr;
+    if (replayPredVeh_ != selected_ || replayPredFrame_ != gFrame) {
+        const Frame& f = rec_->frames[selected_][gFrame];
+        double x0[6];
+        for (int i = 0; i < 6; ++i) x0[i] = f.phys[i];
+        // f.refStep is already the wrapped trajectory index (offset included),
+        // so it serves directly as the rollout's input index base.
+        replayPred_ = predictHold(x0, f.act, f.refStep, *traj_, 0, PredictParams{});
+        replayPredVeh_ = selected_;
+        replayPredFrame_ = gFrame;
+    }
+    return &replayPred_;
+}
+
+void Visualizer::drawPrediction() {
+    const Prediction* pred = currentPrediction();
+    if (!pred || pred->e_y.size() < 2) return;
+    const Frame& f = rec_->frames[selected_][gFrame];
+    const long stride = std::max<long>(1, pred->strideTicks);
+
+    auto worldAt = [&](size_t k) {
+        const long ref = static_cast<long>(f.refStep) + static_cast<long>(k) * stride;
+        return traj_->pointAt(ref) + traj_->normalAt(ref) * (pred->e_y[k] * exag_);
+    };
+
+    // Dotted line: groups of drawn segments separated by gaps.
+    const float w = 2.0f / gZoom;
+    constexpr size_t kDash = 3, kGap = 2;
+    for (size_t k = 0; k + 1 < pred->e_y.size(); ++k) {
+        if (k % (kDash + kGap) >= kDash) continue;
+        const Color c = Fade(errorColor(std::fabs(pred->e_y[k])), 0.9f);
+        DrawLineEx(rl(worldAt(k)), rl(worldAt(k + 1)), w, c);
+    }
+
+    // Marker at the predicted 0.8 m crossing (red ring), if within horizon.
+    const long H = PredictParams{}.horizonTicks;
+    if (pred->ttvTicks < H) {
+        const size_t iv = std::min(pred->e_y.size() - 1,
+                                   static_cast<size_t>(pred->ttvTicks / stride));
+        const Vec2 p = worldAt(iv);
+        DrawCircleLinesV(rl(p), 6.0f / gZoom, Color{255, 60, 50, 255});
+        DrawCircleLinesV(rl(p), 7.5f / gZoom, Color{255, 60, 50, 180});
+    }
+    // Marker at the point of no return (orange diamond).
+    if (pred->ttpnrTicks < H) {
+        const size_t ip = std::min(pred->e_y.size() - 1,
+                                   static_cast<size_t>(pred->ttpnrTicks / stride));
+        DrawPoly(rl(worldAt(ip)), 4, 6.0f / gZoom, 45.0f, Color{255, 160, 40, 230});
+    }
 }
 
 void Visualizer::drawTrack() {
@@ -255,7 +317,7 @@ void Visualizer::drawCars() {
 void Visualizer::drawHud() {
     const int sw = GetScreenWidth();
     const int avail = availableFrames();
-    DrawRectangle(0, 0, 360, 168, Color{0, 0, 0, 150});
+    DrawRectangle(0, 0, 360, 190, Color{0, 0, 0, 150});
 
     char line[160];
     int y = 8;
@@ -288,6 +350,24 @@ void Visualizer::drawHud() {
                                                   : Color{60, 200, 90, 255};
         std::snprintf(line, sizeof line, "%s%s", state, (f.flags & Frame::kCritical) ? "  [curve]" : "");
         put(line, sc);
+        // Held-command predictions (>= horizon shown as ">=500"; -1 = no data).
+        if (f.ttpnr_ms >= 0.0f) {
+            const float H = 500.0f;
+            char ttvBuf[16], pnrBuf[16];
+            if (f.ttv_ms >= H) std::snprintf(ttvBuf, sizeof ttvBuf, ">=%.0f", H);
+            else               std::snprintf(ttvBuf, sizeof ttvBuf, "%.0f", f.ttv_ms);
+            if (f.ttpnr_ms >= H) std::snprintf(pnrBuf, sizeof pnrBuf, ">=%.0f", H);
+            else                 std::snprintf(pnrBuf, sizeof pnrBuf, "%.0f", f.ttpnr_ms);
+            if (f.ttpnr_ms <= 0.0f) {
+                put("pred: PAST POINT OF NO RETURN", Color{255, 60, 50, 255});
+            } else {
+                std::snprintf(line, sizeof line, "pred: hits 0.8m in %s ms   PNR in %s ms",
+                              ttvBuf, pnrBuf);
+                const Color pc = f.ttpnr_ms < 100.0f ? Color{255, 160, 40, 255}
+                                                     : Color{200, 200, 215, 255};
+                put(line, pc);
+            }
+        }
     } else {
         put("warming up...");
     }

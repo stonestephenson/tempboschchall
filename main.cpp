@@ -147,7 +147,12 @@ int main(int argc, char** argv) {
             auto traj = Trajectory::load(static_cast<Profile>(rec.profile));
             std::printf("Replaying %s (%s, %d vehicles, %.1f s)\n", replayFile.c_str(),
                         rec.schedulerName.c_str(), rec.nVehicles, rec.duration());
-            Visualizer viz(traj);
+            VizConfig vcfg;
+            vcfg.screenshotPath = argValue(argc, argv, "--screenshot", "");
+            vcfg.screenshotAtFrame = std::atoi(argValue(argc, argv, "--screenshot-at", "180"));
+            vcfg.initialSelected = std::atoi(argValue(argc, argv, "--select", "0"));
+            vcfg.initialSpeed = std::atof(argValue(argc, argv, "--speed", "4"));
+            Visualizer viz(traj, vcfg);
             viz.replay(rec);
             return 0;
         }
@@ -199,6 +204,9 @@ int main(int argc, char** argv) {
                     profileName(params.profile));
         VizConfig vcfg;
         vcfg.screenshotPath = argValue(argc, argv, "--screenshot", "");
+        vcfg.screenshotAtFrame = std::atoi(argValue(argc, argv, "--screenshot-at", "180"));
+        vcfg.initialSelected = std::atoi(argValue(argc, argv, "--select", "0"));
+        vcfg.initialSpeed = std::atof(argValue(argc, argv, "--speed", "4"));
         Visualizer viz(sim.trajectory(), vcfg);
         viz.live(sim);
         if (!saveFile.empty()) {

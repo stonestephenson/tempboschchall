@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "core/Vec2.h"
+#include "sim/Predictor.h"
 #include "sim/Recording.h"
 #include "trace/Trajectory.h"
 
@@ -26,6 +27,8 @@ struct VizConfig {
     // verification / sharing stills). Empty disables.
     std::string screenshotPath;
     int         screenshotAtFrame = 180;
+    int         initialSelected   = 0;   // vehicle selected at startup
+    double      initialSpeed      = 4.0; // playback speed (driving-seconds per wall-second)
 };
 
 class Visualizer {
@@ -44,6 +47,13 @@ private:
     void drawScene();
     void drawTrack();
     void drawVehiclePaths();
+    // Dotted held-command prediction for the selected vehicle, with markers at
+    // the predicted 0.8 m crossing and the point of no return (PREDICTOR.md).
+    void drawPrediction();
+    // The prediction to draw for the current (selected_, gFrame), or nullptr.
+    // Live: the simulation's 10 ms cache. Replay / finished run: recomputed
+    // from the frame's stored state (recording format >= 4), cached per frame.
+    const Prediction* currentPrediction();
     void drawCars();
     void drawHud();
     void drawErrorStrip();
@@ -67,7 +77,7 @@ private:
     // View / playback state.
     double cursor_       = 0.0;    // fractional frame index
     bool   playing_      = true;
-    double playbackSpeed_= 4.0;    // driving-seconds per wall-second
+    double playbackSpeed_= 4.0;    // driving-seconds per wall-second (cfg.initialSpeed)
     int    selected_     = 0;
     bool   follow_       = false;
     float  exag_         = 25.0f;
@@ -76,6 +86,11 @@ private:
 
     float  fitZoom_      = 1.0f;
     Vec2   trackCenter_{};
+
+    // Replay-mode prediction cache (recomputed when the cursor or selection moves).
+    Prediction replayPred_;
+    int        replayPredVeh_   = -1;
+    int        replayPredFrame_ = -1;
 };
 
 }  // namespace cps

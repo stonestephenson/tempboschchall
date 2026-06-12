@@ -40,11 +40,12 @@ struct PredictParams {
 // not-yet-simulated tick; e_y[0] is the current error). ttvTicks/ttpnrTicks
 // == horizonTicks means "not within the horizon".
 struct Prediction {
-    long fromStep   = 0;
-    long ttvTicks   = 0;     // first tick with |e_y| >= 0.8 under held command
-    long ttpnrTicks = 0;     // last tick at which recovery can still begin
-    bool pastPnr    = false; // recovery already impossible (ttpnrTicks == 0)
-    std::vector<float> e_y;  // predicted error every vizStride ticks
+    long fromStep    = 0;
+    long ttvTicks    = 0;     // first tick with |e_y| >= 0.8 under held command
+    long ttpnrTicks  = 0;     // last tick at which recovery can still begin
+    bool pastPnr     = false; // recovery already impossible (ttpnrTicks == 0)
+    long strideTicks = 10;    // ticks between consecutive e_y samples
+    std::vector<float> e_y;   // predicted error every strideTicks ticks
 };
 
 // Per-profile default steering limit: max |act_out| over a clean N=1

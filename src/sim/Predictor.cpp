@@ -304,6 +304,7 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
     // vizStride 10, pnrSearchStrideTicks 50, coarse block 10; validation: 1/1).
     const long vizStride  = std::max<long>(params.vizStride, c);
     const long snapStride = std::max<long>(params.pnrSearchStrideTicks, c);
+    out.strideTicks = vizStride;
 
     double x[6];
     for (int i = 0; i < 6; ++i) x[i] = x0[i];
