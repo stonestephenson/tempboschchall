@@ -1,0 +1,1226 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1070" height="336" viewBox="0 0 1070 336">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<style>text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:12px;fill:#263238}.small{font-size:10px;fill:#607d8b}.axis{stroke:#90a4ae;stroke-width:1}.grid{stroke:#eceff1;stroke-width:1}.lane{fill:#f8fafc;stroke:#d8e0e8;stroke-width:1}.bar{stroke:#263238;stroke-width:.4}</style>
+<text x="86" y="24" font-size="15" font-weight="600">PartitionedPolicyScheduler[TimeToUnsafe] schedule, first 120.00 ms</text>
+<rect x="86" y="39" width="10" height="10" fill="#1f77b4"/>
+<text class="small" x="100" y="48">v0</text>
+<rect x="128" y="39" width="10" height="10" fill="#d62728"/>
+<text class="small" x="142" y="48">v1</text>
+<rect x="170" y="39" width="10" height="10" fill="#2ca02c"/>
+<text class="small" x="184" y="48">v2</text>
+<rect x="212" y="39" width="10" height="10" fill="#ff7f0e"/>
+<text class="small" x="226" y="48">v3</text>
+<rect x="254" y="39" width="10" height="10" fill="#9467bd"/>
+<text class="small" x="268" y="48">v4</text>
+<rect x="296" y="39" width="10" height="10" fill="#17becf"/>
+<text class="small" x="310" y="48">v5</text>
+<rect x="338" y="39" width="10" height="10" fill="#8c564b"/>
+<text class="small" x="352" y="48">v6</text>
+<rect x="380" y="39" width="10" height="10" fill="#e377c2"/>
+<text class="small" x="394" y="48">v7</text>
+<rect x="422" y="39" width="10" height="10" fill="#7f7f7f"/>
+<text class="small" x="436" y="48">v8</text>
+<rect x="464" y="39" width="10" height="10" fill="#bcbd22"/>
+<text class="small" x="478" y="48">v9</text>
+<rect x="506" y="39" width="10" height="10" fill="#005f73"/>
+<text class="small" x="520" y="48">v10</text>
+<rect x="548" y="39" width="10" height="10" fill="#ae2012"/>
+<text class="small" x="562" y="48">v11</text>
+<line class="axis" x1="86" y1="42" x2="1046" y2="42"/>
+<line class="grid" x1="86.00" y1="42" x2="86.00" y2="294"/>
+<line class="axis" x1="86.00" y1="38" x2="86.00" y2="46"/>
+<text class="small" text-anchor="middle" x="86.00" y="32">0</text>
+<line class="grid" x1="246.00" y1="42" x2="246.00" y2="294"/>
+<line class="axis" x1="246.00" y1="38" x2="246.00" y2="46"/>
+<text class="small" text-anchor="middle" x="246.00" y="32">20</text>
+<line class="grid" x1="406.00" y1="42" x2="406.00" y2="294"/>
+<line class="axis" x1="406.00" y1="38" x2="406.00" y2="46"/>
+<text class="small" text-anchor="middle" x="406.00" y="32">40</text>
+<line class="grid" x1="566.00" y1="42" x2="566.00" y2="294"/>
+<line class="axis" x1="566.00" y1="38" x2="566.00" y2="46"/>
+<text class="small" text-anchor="middle" x="566.00" y="32">60</text>
+<line class="grid" x1="726.00" y1="42" x2="726.00" y2="294"/>
+<line class="axis" x1="726.00" y1="38" x2="726.00" y2="46"/>
+<text class="small" text-anchor="middle" x="726.00" y="32">80</text>
+<line class="grid" x1="886.00" y1="42" x2="886.00" y2="294"/>
+<line class="axis" x1="886.00" y1="38" x2="886.00" y2="46"/>
+<text class="small" text-anchor="middle" x="886.00" y="32">100</text>
+<line class="grid" x1="1046.00" y1="42" x2="1046.00" y2="294"/>
+<line class="axis" x1="1046.00" y1="38" x2="1046.00" y2="46"/>
+<text class="small" text-anchor="middle" x="1046.00" y="32">120</text>
+<text class="small" x="1028" y="24">ms</text>
+<text text-anchor="end" x="52" y="100">core 0</text>
+<text class="small" text-anchor="end" x="76" y="83">E</text>
+<rect class="lane" x="86" y="74" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="97">C</text>
+<rect class="lane" x="86" y="88" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="111">F</text>
+<rect class="lane" x="86" y="102" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="125">M</text>
+<rect class="lane" x="86" y="116" width="960" height="10"/>
+<text text-anchor="end" x="52" y="170">core 1</text>
+<text class="small" text-anchor="end" x="76" y="153">E</text>
+<rect class="lane" x="86" y="144" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="167">C</text>
+<rect class="lane" x="86" y="158" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="181">F</text>
+<rect class="lane" x="86" y="172" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="195">M</text>
+<rect class="lane" x="86" y="186" width="960" height="10"/>
+<text text-anchor="end" x="52" y="240">core 2</text>
+<text class="small" text-anchor="end" x="76" y="223">E</text>
+<rect class="lane" x="86" y="214" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="237">C</text>
+<rect class="lane" x="86" y="228" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="251">F</text>
+<rect class="lane" x="86" y="242" width="960" height="10"/>
+<text class="small" text-anchor="end" x="76" y="265">M</text>
+<rect class="lane" x="86" y="256" width="960" height="10"/>
+<rect class="bar" x="86.00" y="75" width="0.80" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 0.00-0.10 ms</title>
+</rect>
+<rect class="bar" x="86.00" y="145" width="0.80" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 0.00-0.10 ms</title>
+</rect>
+<rect class="bar" x="86.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 0.00-0.90 ms</title>
+</rect>
+<rect class="bar" x="86.80" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 0.10-1.00 ms</title>
+</rect>
+<rect class="bar" x="86.80" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 0.10-1.00 ms</title>
+</rect>
+<rect class="bar" x="93.20" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 0.90-1.20 ms</title>
+</rect>
+<rect class="bar" x="94.00" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 1.00-1.30 ms</title>
+</rect>
+<rect class="bar" x="94.00" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 1.00-1.30 ms</title>
+</rect>
+<rect class="bar" x="95.60" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 1.20-2.40 ms</title>
+</rect>
+<rect class="bar" x="96.40" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 1.30-2.50 ms</title>
+</rect>
+<rect class="bar" x="96.40" y="173" width="9.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 1.30-2.50 ms</title>
+</rect>
+<rect class="bar" x="105.20" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 2.40-2.70 ms</title>
+</rect>
+<rect class="bar" x="106.00" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 2.50-2.80 ms</title>
+</rect>
+<rect class="bar" x="106.00" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 2.50-2.80 ms</title>
+</rect>
+<rect class="bar" x="107.60" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 2.70-3.60 ms</title>
+</rect>
+<rect class="bar" x="108.40" y="75" width="6.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 2.80-3.60 ms</title>
+</rect>
+<rect class="bar" x="108.40" y="145" width="6.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 2.80-3.60 ms</title>
+</rect>
+<rect class="bar" x="114.80" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 3.60-4.50 ms</title>
+</rect>
+<rect class="bar" x="114.80" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 3.60-4.50 ms</title>
+</rect>
+<rect class="bar" x="114.80" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 3.60-4.50 ms</title>
+</rect>
+<rect class="bar" x="122.00" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 4.50-5.40 ms</title>
+</rect>
+<rect class="bar" x="122.00" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 4.50-5.40 ms</title>
+</rect>
+<rect class="bar" x="122.00" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 4.50-5.40 ms</title>
+</rect>
+<rect class="bar" x="129.20" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 5.40-5.70 ms</title>
+</rect>
+<rect class="bar" x="129.20" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 5.40-5.70 ms</title>
+</rect>
+<rect class="bar" x="129.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 5.40-5.70 ms</title>
+</rect>
+<rect class="bar" x="131.60" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 5.70-6.90 ms</title>
+</rect>
+<rect class="bar" x="131.60" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 5.70-6.90 ms</title>
+</rect>
+<rect class="bar" x="131.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 5.70-6.90 ms</title>
+</rect>
+<rect class="bar" x="141.20" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 6.90-7.20 ms</title>
+</rect>
+<rect class="bar" x="141.20" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 6.90-7.20 ms</title>
+</rect>
+<rect class="bar" x="141.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 6.90-7.20 ms</title>
+</rect>
+<rect class="bar" x="143.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 7.20-7.50 ms</title>
+</rect>
+<rect class="bar" x="143.60" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 7.20-7.50 ms</title>
+</rect>
+<rect class="bar" x="143.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 7.20-7.50 ms</title>
+</rect>
+<rect class="bar" x="146.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 7.50-8.70 ms</title>
+</rect>
+<rect class="bar" x="146.00" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 7.50-8.70 ms</title>
+</rect>
+<rect class="bar" x="146.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 7.50-8.70 ms</title>
+</rect>
+<rect class="bar" x="155.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 8.70-9.00 ms</title>
+</rect>
+<rect class="bar" x="155.60" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 8.70-9.00 ms</title>
+</rect>
+<rect class="bar" x="155.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 8.70-9.00 ms</title>
+</rect>
+<rect class="bar" x="158.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 9.00-9.30 ms</title>
+</rect>
+<rect class="bar" x="158.00" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 9.00-9.30 ms</title>
+</rect>
+<rect class="bar" x="158.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 9.00-9.30 ms</title>
+</rect>
+<rect class="bar" x="160.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 9.30-10.00 ms</title>
+</rect>
+<rect class="bar" x="160.40" y="173" width="5.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 9.30-10.00 ms</title>
+</rect>
+<rect class="bar" x="160.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 9.30-10.00 ms</title>
+</rect>
+<rect class="bar" x="166.00" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 10.00-10.90 ms</title>
+</rect>
+<rect class="bar" x="166.00" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 10.00-10.90 ms</title>
+</rect>
+<rect class="bar" x="166.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 10.00-10.90 ms</title>
+</rect>
+<rect class="bar" x="173.20" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 10.90-11.80 ms</title>
+</rect>
+<rect class="bar" x="173.20" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 10.90-11.80 ms</title>
+</rect>
+<rect class="bar" x="173.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 10.90-11.80 ms</title>
+</rect>
+<rect class="bar" x="180.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 11.80-12.70 ms</title>
+</rect>
+<rect class="bar" x="180.40" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 11.80-12.70 ms</title>
+</rect>
+<rect class="bar" x="180.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 11.80-12.70 ms</title>
+</rect>
+<rect class="bar" x="187.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 12.70-13.60 ms</title>
+</rect>
+<rect class="bar" x="187.60" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 12.70-13.60 ms</title>
+</rect>
+<rect class="bar" x="187.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 12.70-13.60 ms</title>
+</rect>
+<rect class="bar" x="194.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 13.60-14.10 ms</title>
+</rect>
+<rect class="bar" x="194.80" y="173" width="4.00" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 13.60-14.10 ms</title>
+</rect>
+<rect class="bar" x="194.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 13.60-14.10 ms</title>
+</rect>
+<rect class="bar" x="198.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 14.10-14.40 ms</title>
+</rect>
+<rect class="bar" x="198.80" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 14.10-14.40 ms</title>
+</rect>
+<rect class="bar" x="198.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 14.10-14.40 ms</title>
+</rect>
+<rect class="bar" x="246.00" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 20.00-20.90 ms</title>
+</rect>
+<rect class="bar" x="246.00" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 20.00-20.90 ms</title>
+</rect>
+<rect class="bar" x="246.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 20.00-20.90 ms</title>
+</rect>
+<rect class="bar" x="253.20" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 20.90-21.20 ms</title>
+</rect>
+<rect class="bar" x="253.20" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 20.90-21.20 ms</title>
+</rect>
+<rect class="bar" x="253.20" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 20.90-21.20 ms</title>
+</rect>
+<rect class="bar" x="255.60" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 21.20-22.40 ms</title>
+</rect>
+<rect class="bar" x="255.60" y="173" width="9.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 21.20-22.40 ms</title>
+</rect>
+<rect class="bar" x="255.60" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 21.20-22.40 ms</title>
+</rect>
+<rect class="bar" x="265.20" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 22.40-22.70 ms</title>
+</rect>
+<rect class="bar" x="265.20" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 22.40-22.70 ms</title>
+</rect>
+<rect class="bar" x="265.20" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 22.40-22.70 ms</title>
+</rect>
+<rect class="bar" x="267.60" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 22.70-23.60 ms</title>
+</rect>
+<rect class="bar" x="267.60" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 22.70-23.60 ms</title>
+</rect>
+<rect class="bar" x="267.60" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 22.70-23.60 ms</title>
+</rect>
+<rect class="bar" x="274.80" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 23.60-24.50 ms</title>
+</rect>
+<rect class="bar" x="274.80" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 23.60-24.50 ms</title>
+</rect>
+<rect class="bar" x="274.80" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 23.60-24.50 ms</title>
+</rect>
+<rect class="bar" x="282.00" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 24.50-25.40 ms</title>
+</rect>
+<rect class="bar" x="282.00" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 24.50-25.40 ms</title>
+</rect>
+<rect class="bar" x="282.00" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 24.50-25.40 ms</title>
+</rect>
+<rect class="bar" x="289.20" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 25.40-25.70 ms</title>
+</rect>
+<rect class="bar" x="289.20" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 25.40-25.70 ms</title>
+</rect>
+<rect class="bar" x="289.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 25.40-25.70 ms</title>
+</rect>
+<rect class="bar" x="291.60" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 25.70-26.90 ms</title>
+</rect>
+<rect class="bar" x="291.60" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 25.70-26.90 ms</title>
+</rect>
+<rect class="bar" x="291.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 25.70-26.90 ms</title>
+</rect>
+<rect class="bar" x="301.20" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 26.90-27.20 ms</title>
+</rect>
+<rect class="bar" x="301.20" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 26.90-27.20 ms</title>
+</rect>
+<rect class="bar" x="301.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 26.90-27.20 ms</title>
+</rect>
+<rect class="bar" x="303.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 27.20-27.50 ms</title>
+</rect>
+<rect class="bar" x="303.60" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 27.20-27.50 ms</title>
+</rect>
+<rect class="bar" x="303.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 27.20-27.50 ms</title>
+</rect>
+<rect class="bar" x="306.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 27.50-28.70 ms</title>
+</rect>
+<rect class="bar" x="306.00" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 27.50-28.70 ms</title>
+</rect>
+<rect class="bar" x="306.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 27.50-28.70 ms</title>
+</rect>
+<rect class="bar" x="315.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 28.70-29.00 ms</title>
+</rect>
+<rect class="bar" x="315.60" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 28.70-29.00 ms</title>
+</rect>
+<rect class="bar" x="315.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 28.70-29.00 ms</title>
+</rect>
+<rect class="bar" x="318.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 29.00-29.30 ms</title>
+</rect>
+<rect class="bar" x="318.00" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 29.00-29.30 ms</title>
+</rect>
+<rect class="bar" x="318.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 29.00-29.30 ms</title>
+</rect>
+<rect class="bar" x="320.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 29.30-30.00 ms</title>
+</rect>
+<rect class="bar" x="320.40" y="173" width="5.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 29.30-30.00 ms</title>
+</rect>
+<rect class="bar" x="320.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 29.30-30.00 ms</title>
+</rect>
+<rect class="bar" x="326.00" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 30.00-30.90 ms</title>
+</rect>
+<rect class="bar" x="326.00" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 30.00-30.90 ms</title>
+</rect>
+<rect class="bar" x="326.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 30.00-30.90 ms</title>
+</rect>
+<rect class="bar" x="333.20" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 30.90-31.80 ms</title>
+</rect>
+<rect class="bar" x="333.20" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 30.90-31.80 ms</title>
+</rect>
+<rect class="bar" x="333.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 30.90-31.80 ms</title>
+</rect>
+<rect class="bar" x="340.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 31.80-32.70 ms</title>
+</rect>
+<rect class="bar" x="340.40" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 31.80-32.70 ms</title>
+</rect>
+<rect class="bar" x="340.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 31.80-32.70 ms</title>
+</rect>
+<rect class="bar" x="347.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 32.70-33.60 ms</title>
+</rect>
+<rect class="bar" x="347.60" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 32.70-33.60 ms</title>
+</rect>
+<rect class="bar" x="347.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 32.70-33.60 ms</title>
+</rect>
+<rect class="bar" x="354.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 33.60-34.10 ms</title>
+</rect>
+<rect class="bar" x="354.80" y="173" width="4.00" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 33.60-34.10 ms</title>
+</rect>
+<rect class="bar" x="354.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 33.60-34.10 ms</title>
+</rect>
+<rect class="bar" x="358.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 34.10-34.40 ms</title>
+</rect>
+<rect class="bar" x="358.80" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 34.10-34.40 ms</title>
+</rect>
+<rect class="bar" x="358.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 34.10-34.40 ms</title>
+</rect>
+<rect class="bar" x="406.00" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 40.00-40.90 ms</title>
+</rect>
+<rect class="bar" x="406.00" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 40.00-40.90 ms</title>
+</rect>
+<rect class="bar" x="406.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 40.00-40.90 ms</title>
+</rect>
+<rect class="bar" x="413.20" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 40.90-41.20 ms</title>
+</rect>
+<rect class="bar" x="413.20" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 40.90-41.20 ms</title>
+</rect>
+<rect class="bar" x="413.20" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 40.90-41.20 ms</title>
+</rect>
+<rect class="bar" x="415.60" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 41.20-42.40 ms</title>
+</rect>
+<rect class="bar" x="415.60" y="173" width="9.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 41.20-42.40 ms</title>
+</rect>
+<rect class="bar" x="415.60" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 41.20-42.40 ms</title>
+</rect>
+<rect class="bar" x="425.20" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 42.40-42.70 ms</title>
+</rect>
+<rect class="bar" x="425.20" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 42.40-42.70 ms</title>
+</rect>
+<rect class="bar" x="425.20" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 42.40-42.70 ms</title>
+</rect>
+<rect class="bar" x="427.60" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 42.70-43.60 ms</title>
+</rect>
+<rect class="bar" x="427.60" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 42.70-43.60 ms</title>
+</rect>
+<rect class="bar" x="427.60" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 42.70-43.60 ms</title>
+</rect>
+<rect class="bar" x="434.80" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 43.60-44.50 ms</title>
+</rect>
+<rect class="bar" x="434.80" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 43.60-44.50 ms</title>
+</rect>
+<rect class="bar" x="434.80" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 43.60-44.50 ms</title>
+</rect>
+<rect class="bar" x="442.00" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 44.50-45.40 ms</title>
+</rect>
+<rect class="bar" x="442.00" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 44.50-45.40 ms</title>
+</rect>
+<rect class="bar" x="442.00" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 44.50-45.40 ms</title>
+</rect>
+<rect class="bar" x="449.20" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 45.40-45.70 ms</title>
+</rect>
+<rect class="bar" x="449.20" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 45.40-45.70 ms</title>
+</rect>
+<rect class="bar" x="449.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 45.40-45.70 ms</title>
+</rect>
+<rect class="bar" x="451.60" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 45.70-46.90 ms</title>
+</rect>
+<rect class="bar" x="451.60" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 45.70-46.90 ms</title>
+</rect>
+<rect class="bar" x="451.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 45.70-46.90 ms</title>
+</rect>
+<rect class="bar" x="461.20" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 46.90-47.20 ms</title>
+</rect>
+<rect class="bar" x="461.20" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 46.90-47.20 ms</title>
+</rect>
+<rect class="bar" x="461.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 46.90-47.20 ms</title>
+</rect>
+<rect class="bar" x="463.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 47.20-47.50 ms</title>
+</rect>
+<rect class="bar" x="463.60" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 47.20-47.50 ms</title>
+</rect>
+<rect class="bar" x="463.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 47.20-47.50 ms</title>
+</rect>
+<rect class="bar" x="466.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 47.50-48.70 ms</title>
+</rect>
+<rect class="bar" x="466.00" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 47.50-48.70 ms</title>
+</rect>
+<rect class="bar" x="466.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 47.50-48.70 ms</title>
+</rect>
+<rect class="bar" x="475.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 48.70-49.00 ms</title>
+</rect>
+<rect class="bar" x="475.60" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 48.70-49.00 ms</title>
+</rect>
+<rect class="bar" x="475.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 48.70-49.00 ms</title>
+</rect>
+<rect class="bar" x="478.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 49.00-49.30 ms</title>
+</rect>
+<rect class="bar" x="478.00" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 49.00-49.30 ms</title>
+</rect>
+<rect class="bar" x="478.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 49.00-49.30 ms</title>
+</rect>
+<rect class="bar" x="480.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 49.30-50.00 ms</title>
+</rect>
+<rect class="bar" x="480.40" y="173" width="5.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 49.30-50.00 ms</title>
+</rect>
+<rect class="bar" x="480.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 49.30-50.00 ms</title>
+</rect>
+<rect class="bar" x="486.00" y="75" width="0.80" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 50.00-50.10 ms</title>
+</rect>
+<rect class="bar" x="486.00" y="145" width="0.80" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 50.00-50.10 ms</title>
+</rect>
+<rect class="bar" x="486.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 50.00-50.90 ms</title>
+</rect>
+<rect class="bar" x="486.80" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 50.10-51.00 ms</title>
+</rect>
+<rect class="bar" x="486.80" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 50.10-51.00 ms</title>
+</rect>
+<rect class="bar" x="493.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 50.90-51.80 ms</title>
+</rect>
+<rect class="bar" x="494.00" y="75" width="6.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 51.00-51.80 ms</title>
+</rect>
+<rect class="bar" x="494.00" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 51.00-51.90 ms</title>
+</rect>
+<rect class="bar" x="500.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 51.80-52.70 ms</title>
+</rect>
+<rect class="bar" x="500.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 51.80-52.70 ms</title>
+</rect>
+<rect class="bar" x="501.20" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 51.90-52.80 ms</title>
+</rect>
+<rect class="bar" x="507.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 52.70-53.60 ms</title>
+</rect>
+<rect class="bar" x="507.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 52.70-53.60 ms</title>
+</rect>
+<rect class="bar" x="508.40" y="145" width="6.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 52.80-53.60 ms</title>
+</rect>
+<rect class="bar" x="514.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 53.60-54.10 ms</title>
+</rect>
+<rect class="bar" x="514.80" y="173" width="4.00" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 53.60-54.10 ms</title>
+</rect>
+<rect class="bar" x="514.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 53.60-54.10 ms</title>
+</rect>
+<rect class="bar" x="518.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 54.10-54.40 ms</title>
+</rect>
+<rect class="bar" x="518.80" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 54.10-54.40 ms</title>
+</rect>
+<rect class="bar" x="518.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 54.10-54.40 ms</title>
+</rect>
+<rect class="bar" x="566.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 60.00-60.90 ms</title>
+</rect>
+<rect class="bar" x="566.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 60.00-60.90 ms</title>
+</rect>
+<rect class="bar" x="566.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 60.00-60.90 ms</title>
+</rect>
+<rect class="bar" x="573.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 60.90-61.80 ms</title>
+</rect>
+<rect class="bar" x="573.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 60.90-61.80 ms</title>
+</rect>
+<rect class="bar" x="573.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 60.90-61.80 ms</title>
+</rect>
+<rect class="bar" x="580.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 61.80-62.70 ms</title>
+</rect>
+<rect class="bar" x="580.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 61.80-62.70 ms</title>
+</rect>
+<rect class="bar" x="580.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 61.80-62.70 ms</title>
+</rect>
+<rect class="bar" x="587.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 62.70-63.60 ms</title>
+</rect>
+<rect class="bar" x="587.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 62.70-63.60 ms</title>
+</rect>
+<rect class="bar" x="587.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 62.70-63.60 ms</title>
+</rect>
+<rect class="bar" x="594.80" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 63.60-63.90 ms</title>
+</rect>
+<rect class="bar" x="594.80" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 63.60-63.90 ms</title>
+</rect>
+<rect class="bar" x="594.80" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 63.60-63.90 ms</title>
+</rect>
+<rect class="bar" x="597.20" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 63.90-65.10 ms</title>
+</rect>
+<rect class="bar" x="597.20" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 63.90-65.10 ms</title>
+</rect>
+<rect class="bar" x="597.20" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 63.90-65.10 ms</title>
+</rect>
+<rect class="bar" x="606.80" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 65.10-65.40 ms</title>
+</rect>
+<rect class="bar" x="606.80" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 65.10-65.40 ms</title>
+</rect>
+<rect class="bar" x="606.80" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 65.10-65.40 ms</title>
+</rect>
+<rect class="bar" x="609.20" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 65.40-65.70 ms</title>
+</rect>
+<rect class="bar" x="609.20" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 65.40-65.70 ms</title>
+</rect>
+<rect class="bar" x="609.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 65.40-65.70 ms</title>
+</rect>
+<rect class="bar" x="611.60" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 65.70-66.90 ms</title>
+</rect>
+<rect class="bar" x="611.60" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 65.70-66.90 ms</title>
+</rect>
+<rect class="bar" x="611.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 65.70-66.90 ms</title>
+</rect>
+<rect class="bar" x="621.20" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 66.90-67.20 ms</title>
+</rect>
+<rect class="bar" x="621.20" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 66.90-67.20 ms</title>
+</rect>
+<rect class="bar" x="621.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 66.90-67.20 ms</title>
+</rect>
+<rect class="bar" x="623.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 67.20-67.50 ms</title>
+</rect>
+<rect class="bar" x="623.60" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 67.20-67.50 ms</title>
+</rect>
+<rect class="bar" x="623.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 67.20-67.50 ms</title>
+</rect>
+<rect class="bar" x="626.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 67.50-68.70 ms</title>
+</rect>
+<rect class="bar" x="626.00" y="173" width="9.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 67.50-68.70 ms</title>
+</rect>
+<rect class="bar" x="626.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 67.50-68.70 ms</title>
+</rect>
+<rect class="bar" x="635.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 68.70-69.00 ms</title>
+</rect>
+<rect class="bar" x="635.60" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 68.70-69.00 ms</title>
+</rect>
+<rect class="bar" x="635.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 68.70-69.00 ms</title>
+</rect>
+<rect class="bar" x="638.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 69.00-69.30 ms</title>
+</rect>
+<rect class="bar" x="638.00" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 69.00-69.30 ms</title>
+</rect>
+<rect class="bar" x="638.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 69.00-69.30 ms</title>
+</rect>
+<rect class="bar" x="640.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 69.30-70.00 ms</title>
+</rect>
+<rect class="bar" x="640.40" y="173" width="5.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 69.30-70.00 ms</title>
+</rect>
+<rect class="bar" x="640.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 69.30-70.00 ms</title>
+</rect>
+<rect class="bar" x="646.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 70.00-70.90 ms</title>
+</rect>
+<rect class="bar" x="646.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 70.00-70.90 ms</title>
+</rect>
+<rect class="bar" x="646.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 70.00-70.90 ms</title>
+</rect>
+<rect class="bar" x="653.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 70.90-71.80 ms</title>
+</rect>
+<rect class="bar" x="653.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 70.90-71.80 ms</title>
+</rect>
+<rect class="bar" x="653.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 70.90-71.80 ms</title>
+</rect>
+<rect class="bar" x="660.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 71.80-72.70 ms</title>
+</rect>
+<rect class="bar" x="660.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 71.80-72.70 ms</title>
+</rect>
+<rect class="bar" x="660.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 71.80-72.70 ms</title>
+</rect>
+<rect class="bar" x="667.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 72.70-73.60 ms</title>
+</rect>
+<rect class="bar" x="667.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 72.70-73.60 ms</title>
+</rect>
+<rect class="bar" x="667.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 72.70-73.60 ms</title>
+</rect>
+<rect class="bar" x="674.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 73.60-74.10 ms</title>
+</rect>
+<rect class="bar" x="674.80" y="173" width="4.00" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 73.60-74.10 ms</title>
+</rect>
+<rect class="bar" x="674.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 73.60-74.10 ms</title>
+</rect>
+<rect class="bar" x="678.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 74.10-74.40 ms</title>
+</rect>
+<rect class="bar" x="678.80" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 74.10-74.40 ms</title>
+</rect>
+<rect class="bar" x="678.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 74.10-74.40 ms</title>
+</rect>
+<rect class="bar" x="726.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 80.00-80.90 ms</title>
+</rect>
+<rect class="bar" x="726.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 80.00-80.90 ms</title>
+</rect>
+<rect class="bar" x="726.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 80.00-80.90 ms</title>
+</rect>
+<rect class="bar" x="733.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 80.90-81.80 ms</title>
+</rect>
+<rect class="bar" x="733.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 80.90-81.80 ms</title>
+</rect>
+<rect class="bar" x="733.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 80.90-81.80 ms</title>
+</rect>
+<rect class="bar" x="740.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 81.80-82.70 ms</title>
+</rect>
+<rect class="bar" x="740.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 81.80-82.70 ms</title>
+</rect>
+<rect class="bar" x="740.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 81.80-82.70 ms</title>
+</rect>
+<rect class="bar" x="747.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 82.70-83.60 ms</title>
+</rect>
+<rect class="bar" x="747.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 82.70-83.60 ms</title>
+</rect>
+<rect class="bar" x="747.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 82.70-83.60 ms</title>
+</rect>
+<rect class="bar" x="754.80" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 83.60-83.90 ms</title>
+</rect>
+<rect class="bar" x="754.80" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 83.60-83.90 ms</title>
+</rect>
+<rect class="bar" x="754.80" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 83.60-83.90 ms</title>
+</rect>
+<rect class="bar" x="757.20" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 83.90-85.10 ms</title>
+</rect>
+<rect class="bar" x="757.20" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 83.90-85.10 ms</title>
+</rect>
+<rect class="bar" x="757.20" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 83.90-85.10 ms</title>
+</rect>
+<rect class="bar" x="766.80" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 85.10-85.40 ms</title>
+</rect>
+<rect class="bar" x="766.80" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 85.10-85.40 ms</title>
+</rect>
+<rect class="bar" x="766.80" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 85.10-85.40 ms</title>
+</rect>
+<rect class="bar" x="769.20" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 85.40-85.70 ms</title>
+</rect>
+<rect class="bar" x="769.20" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 85.40-85.70 ms</title>
+</rect>
+<rect class="bar" x="769.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 85.40-85.70 ms</title>
+</rect>
+<rect class="bar" x="771.60" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 85.70-86.90 ms</title>
+</rect>
+<rect class="bar" x="771.60" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 85.70-86.90 ms</title>
+</rect>
+<rect class="bar" x="771.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 85.70-86.90 ms</title>
+</rect>
+<rect class="bar" x="781.20" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 86.90-87.20 ms</title>
+</rect>
+<rect class="bar" x="781.20" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 86.90-87.20 ms</title>
+</rect>
+<rect class="bar" x="781.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 86.90-87.20 ms</title>
+</rect>
+<rect class="bar" x="783.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 87.20-87.50 ms</title>
+</rect>
+<rect class="bar" x="783.60" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 87.20-87.50 ms</title>
+</rect>
+<rect class="bar" x="783.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 87.20-87.50 ms</title>
+</rect>
+<rect class="bar" x="786.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 87.50-88.70 ms</title>
+</rect>
+<rect class="bar" x="786.00" y="173" width="9.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 87.50-88.70 ms</title>
+</rect>
+<rect class="bar" x="786.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 87.50-88.70 ms</title>
+</rect>
+<rect class="bar" x="795.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 88.70-89.00 ms</title>
+</rect>
+<rect class="bar" x="795.60" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 88.70-89.00 ms</title>
+</rect>
+<rect class="bar" x="795.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 88.70-89.00 ms</title>
+</rect>
+<rect class="bar" x="798.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 89.00-89.30 ms</title>
+</rect>
+<rect class="bar" x="798.00" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 89.00-89.30 ms</title>
+</rect>
+<rect class="bar" x="798.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 89.00-89.30 ms</title>
+</rect>
+<rect class="bar" x="800.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 89.30-90.00 ms</title>
+</rect>
+<rect class="bar" x="800.40" y="173" width="5.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 89.30-90.00 ms</title>
+</rect>
+<rect class="bar" x="800.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 89.30-90.00 ms</title>
+</rect>
+<rect class="bar" x="806.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 90.00-90.90 ms</title>
+</rect>
+<rect class="bar" x="806.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 90.00-90.90 ms</title>
+</rect>
+<rect class="bar" x="806.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 90.00-90.90 ms</title>
+</rect>
+<rect class="bar" x="813.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 90.90-91.80 ms</title>
+</rect>
+<rect class="bar" x="813.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 90.90-91.80 ms</title>
+</rect>
+<rect class="bar" x="813.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 90.90-91.80 ms</title>
+</rect>
+<rect class="bar" x="820.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 91.80-92.70 ms</title>
+</rect>
+<rect class="bar" x="820.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 91.80-92.70 ms</title>
+</rect>
+<rect class="bar" x="820.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 91.80-92.70 ms</title>
+</rect>
+<rect class="bar" x="827.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 92.70-93.60 ms</title>
+</rect>
+<rect class="bar" x="827.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 92.70-93.60 ms</title>
+</rect>
+<rect class="bar" x="827.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 92.70-93.60 ms</title>
+</rect>
+<rect class="bar" x="834.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 93.60-94.10 ms</title>
+</rect>
+<rect class="bar" x="834.80" y="173" width="4.00" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 93.60-94.10 ms</title>
+</rect>
+<rect class="bar" x="834.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 93.60-94.10 ms</title>
+</rect>
+<rect class="bar" x="838.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 94.10-94.40 ms</title>
+</rect>
+<rect class="bar" x="838.80" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 94.10-94.40 ms</title>
+</rect>
+<rect class="bar" x="838.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 94.10-94.40 ms</title>
+</rect>
+<rect class="bar" x="886.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 100.00-100.90 ms</title>
+</rect>
+<rect class="bar" x="886.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 100.00-100.90 ms</title>
+</rect>
+<rect class="bar" x="886.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 100.00-100.90 ms</title>
+</rect>
+<rect class="bar" x="893.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 100.90-101.80 ms</title>
+</rect>
+<rect class="bar" x="893.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 100.90-101.80 ms</title>
+</rect>
+<rect class="bar" x="893.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 100.90-101.80 ms</title>
+</rect>
+<rect class="bar" x="900.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 101.80-102.70 ms</title>
+</rect>
+<rect class="bar" x="900.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 101.80-102.70 ms</title>
+</rect>
+<rect class="bar" x="900.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 101.80-102.70 ms</title>
+</rect>
+<rect class="bar" x="907.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 102.70-103.60 ms</title>
+</rect>
+<rect class="bar" x="907.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 102.70-103.60 ms</title>
+</rect>
+<rect class="bar" x="907.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 102.70-103.60 ms</title>
+</rect>
+<rect class="bar" x="914.80" y="89" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Controller, 103.60-103.90 ms</title>
+</rect>
+<rect class="bar" x="914.80" y="159" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Controller, 103.60-103.90 ms</title>
+</rect>
+<rect class="bar" x="914.80" y="229" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Controller, 103.60-103.90 ms</title>
+</rect>
+<rect class="bar" x="917.20" y="103" width="9.60" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Feedforward, 103.90-105.10 ms</title>
+</rect>
+<rect class="bar" x="917.20" y="173" width="9.60" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Feedforward, 103.90-105.10 ms</title>
+</rect>
+<rect class="bar" x="917.20" y="243" width="9.60" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Feedforward, 103.90-105.10 ms</title>
+</rect>
+<rect class="bar" x="926.80" y="117" width="2.40" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Merger, 105.10-105.40 ms</title>
+</rect>
+<rect class="bar" x="926.80" y="187" width="2.40" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Merger, 105.10-105.40 ms</title>
+</rect>
+<rect class="bar" x="926.80" y="257" width="2.40" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Merger, 105.10-105.40 ms</title>
+</rect>
+<rect class="bar" x="929.20" y="89" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Controller, 105.40-105.70 ms</title>
+</rect>
+<rect class="bar" x="929.20" y="159" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Controller, 105.40-105.70 ms</title>
+</rect>
+<rect class="bar" x="929.20" y="229" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Controller, 105.40-105.70 ms</title>
+</rect>
+<rect class="bar" x="931.60" y="103" width="9.60" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Feedforward, 105.70-106.90 ms</title>
+</rect>
+<rect class="bar" x="931.60" y="173" width="9.60" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Feedforward, 105.70-106.90 ms</title>
+</rect>
+<rect class="bar" x="931.60" y="243" width="9.60" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Feedforward, 105.70-106.90 ms</title>
+</rect>
+<rect class="bar" x="941.20" y="117" width="2.40" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Merger, 106.90-107.20 ms</title>
+</rect>
+<rect class="bar" x="941.20" y="187" width="2.40" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Merger, 106.90-107.20 ms</title>
+</rect>
+<rect class="bar" x="941.20" y="257" width="2.40" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Merger, 106.90-107.20 ms</title>
+</rect>
+<rect class="bar" x="943.60" y="89" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Controller, 107.20-107.50 ms</title>
+</rect>
+<rect class="bar" x="943.60" y="159" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Controller, 107.20-107.50 ms</title>
+</rect>
+<rect class="bar" x="943.60" y="229" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Controller, 107.20-107.50 ms</title>
+</rect>
+<rect class="bar" x="946.00" y="103" width="9.60" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Feedforward, 107.50-108.70 ms</title>
+</rect>
+<rect class="bar" x="946.00" y="173" width="9.60" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Feedforward, 107.50-108.70 ms</title>
+</rect>
+<rect class="bar" x="946.00" y="243" width="9.60" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Feedforward, 107.50-108.70 ms</title>
+</rect>
+<rect class="bar" x="955.60" y="117" width="2.40" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Merger, 108.70-109.00 ms</title>
+</rect>
+<rect class="bar" x="955.60" y="187" width="2.40" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Merger, 108.70-109.00 ms</title>
+</rect>
+<rect class="bar" x="955.60" y="257" width="2.40" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Merger, 108.70-109.00 ms</title>
+</rect>
+<rect class="bar" x="958.00" y="89" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Controller, 109.00-109.30 ms</title>
+</rect>
+<rect class="bar" x="958.00" y="159" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Controller, 109.00-109.30 ms</title>
+</rect>
+<rect class="bar" x="958.00" y="229" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Controller, 109.00-109.30 ms</title>
+</rect>
+<rect class="bar" x="960.40" y="103" width="5.60" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 109.30-110.00 ms</title>
+</rect>
+<rect class="bar" x="960.40" y="173" width="5.60" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 109.30-110.00 ms</title>
+</rect>
+<rect class="bar" x="960.40" y="243" width="5.60" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 109.30-110.00 ms</title>
+</rect>
+<rect class="bar" x="966.00" y="75" width="7.20" height="8" fill="#1f77b4">
+<title>core 0, vehicle 0, Estimator, 110.00-110.90 ms</title>
+</rect>
+<rect class="bar" x="966.00" y="145" width="7.20" height="8" fill="#d62728">
+<title>core 1, vehicle 1, Estimator, 110.00-110.90 ms</title>
+</rect>
+<rect class="bar" x="966.00" y="215" width="7.20" height="8" fill="#2ca02c">
+<title>core 2, vehicle 2, Estimator, 110.00-110.90 ms</title>
+</rect>
+<rect class="bar" x="973.20" y="75" width="7.20" height="8" fill="#ff7f0e">
+<title>core 0, vehicle 3, Estimator, 110.90-111.80 ms</title>
+</rect>
+<rect class="bar" x="973.20" y="145" width="7.20" height="8" fill="#9467bd">
+<title>core 1, vehicle 4, Estimator, 110.90-111.80 ms</title>
+</rect>
+<rect class="bar" x="973.20" y="215" width="7.20" height="8" fill="#17becf">
+<title>core 2, vehicle 5, Estimator, 110.90-111.80 ms</title>
+</rect>
+<rect class="bar" x="980.40" y="75" width="7.20" height="8" fill="#8c564b">
+<title>core 0, vehicle 6, Estimator, 111.80-112.70 ms</title>
+</rect>
+<rect class="bar" x="980.40" y="145" width="7.20" height="8" fill="#e377c2">
+<title>core 1, vehicle 7, Estimator, 111.80-112.70 ms</title>
+</rect>
+<rect class="bar" x="980.40" y="215" width="7.20" height="8" fill="#7f7f7f">
+<title>core 2, vehicle 8, Estimator, 111.80-112.70 ms</title>
+</rect>
+<rect class="bar" x="987.60" y="75" width="7.20" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Estimator, 112.70-113.60 ms</title>
+</rect>
+<rect class="bar" x="987.60" y="145" width="7.20" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Estimator, 112.70-113.60 ms</title>
+</rect>
+<rect class="bar" x="987.60" y="215" width="7.20" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Estimator, 112.70-113.60 ms</title>
+</rect>
+<rect class="bar" x="994.80" y="103" width="4.00" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Feedforward, 113.60-114.10 ms</title>
+</rect>
+<rect class="bar" x="994.80" y="173" width="4.00" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Feedforward, 113.60-114.10 ms</title>
+</rect>
+<rect class="bar" x="994.80" y="243" width="4.00" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Feedforward, 113.60-114.10 ms</title>
+</rect>
+<rect class="bar" x="998.80" y="117" width="2.40" height="8" fill="#bcbd22">
+<title>core 0, vehicle 9, Merger, 114.10-114.40 ms</title>
+</rect>
+<rect class="bar" x="998.80" y="187" width="2.40" height="8" fill="#005f73">
+<title>core 1, vehicle 10, Merger, 114.10-114.40 ms</title>
+</rect>
+<rect class="bar" x="998.80" y="257" width="2.40" height="8" fill="#ae2012">
+<title>core 2, vehicle 11, Merger, 114.10-114.40 ms</title>
+</rect>
+<text class="small" x="86" y="314">lanes: E estimator, C controller, F feedforward, M merger</text>
+</svg>
