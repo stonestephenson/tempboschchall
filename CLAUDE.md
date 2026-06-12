@@ -40,6 +40,9 @@ Then by task:
   (chain RTA machinery) and Wilson et al. MEMOCODE'24 (Route B's prior)
   under GuoLabSpecifics/.
 - **Zone-tolerance experiments**: `ZONE_TOLERANCE.md`.
+- **Prediction system / ttu scheduler / overlay**: `PREDICTOR.md` — TTV and
+  TTPNR definitions, the assumed steering limit, the fidelity gate
+  (`--validate-predictor`; re-run after ANY predictor change).
 - **Scheduler / policy code**: `src/sched/` — `TaskModel.cpp` (`endTick` =
   stamp propagation, `releaseIfDue` = overrun policies),
   `PolicyScheduler.cpp`, `policies/*.cpp`, interfaces in `Scheduler.h` +

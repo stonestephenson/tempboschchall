@@ -38,15 +38,22 @@ The executable is `build/cps`.
 ./build/cps --replay run.cpsr
 ```
 
-Key options: `--scheduler rm|prm|edf|context|honest`, `--vehicles N`, `--cores N`,
-`--profile 10|12.5|15`, `--duration SEC`, `--exec avg|worst|best|pert`,
-`--overrun kill|skip`, `--net-delay MS` (fix both network delays, for
-delay-tolerance sweeps), `--seed N`, `--headless`, `--csv FILE` (append
-per-vehicle summary rows for sweeps), `--save FILE`, `--replay FILE`,
-`--screenshot FILE`. Run `./build/cps --help` for the full list.
+Key options: `--scheduler rm|prm|edf|context|honest|ttu`, `--vehicles N`,
+`--cores N`, `--profile 10|12.5|15`, `--duration SEC`,
+`--exec avg|worst|best|pert`, `--overrun kill|skip`, `--net-delay MS` (fix
+both network delays, for delay-tolerance sweeps), `--delta-max RAD` +
+`--triage` + `--validate-predictor` (prediction system, see PREDICTOR.md),
+`--seed N`, `--headless`, `--csv FILE` (append per-vehicle summary rows for
+sweeps), `--save FILE`, `--replay FILE`, `--screenshot FILE` with
+`--screenshot-at N`, `--select N`, `--speed X` (aim scripted screenshots).
+Run `./build/cps --help` for the full list.
 
 Fixed-priority policies use the strict total order (period, vehicle, kind) —
 deterministic across platforms and exactly the model BOUND.md §7 analyzes.
+`ttu` is the predictive scheduler (ranks on time-to-point-of-no-return from
+held-command plant rollouts); the visualizer shows the selected car's
+predicted path as a dotted line with 0.8 m-crossing and point-of-no-return
+markers, live and in replays (recording format v4).
 
 Scheduler notes: `context` scores on ground-truth metrics (an **oracle** upper
 bound); `honest` is the same scoring restricted to the estimator-derived remote

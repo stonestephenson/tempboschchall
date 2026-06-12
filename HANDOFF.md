@@ -120,14 +120,37 @@ coincide up to the controller and satisfy `age_fresh ≤ age_path`.
 - 12 veh kill: veh 10–11 never actuate (n/a), identical to original baseline.
 - 12 veh skip: **all 12 chains alive** (0 n/a), worst path age 505.5 ms.
 
+## Done 2026-06-11 (prediction system; commits b0877db..)
+**PREDICTOR.md is the design doc.** Harness-side verbatim port of the FMU
+plant (fidelity gate `--validate-predictor`: 1.2M samples, max dev 1.49e-08 m
+= float floor, all profiles) drives per-vehicle held-command predictions:
+TTV (time until |e_y| crosses 0.8 under the held command) and TTPNR (time
+until recovery under an assumed steering limit becomes impossible; the
+*physical deadline*). `--scheduler ttu` ranks on TTPNR; `--triage` flips
+past-PNR handling. Recording v4 stores per-frame state so replays recompute
+the overlay; the viz draws the selected car's dotted predicted line + 0.8m
+ring + PNR diamond, live and replay (`--select/--speed/--screenshot-at`).
+Headline (worst/kill/3 cores, 30 s): classic policies die at N≈10–12 (RM@12:
+4519 hard breaches, 2 dead chains); **ttu: zero hard breaches through N=14
+with ≥150 ms fleet-wide PNR margin** — beats even the oracle reactive
+scheduler on margin at equal information. Calibrated steering limits
+(×1.5 of observed max |act_out|): 0.285/0.534/0.419 rad per profile.
+Prediction overhead +17% at 12 veh. Sweep: `predictive_sweep.csv`.
+
 ## Open next-steps
 1. **Kurt review of BOUND.md** (Lemma 1 pairing, hold-term composition, §7.2
-   workload bound for the discrete model).
+   workload bound for the discrete model) **+ PREDICTOR.md §3** (recovery
+   heuristic, monotonicity assumption).
 2. Machine-solve the §7 fixed points + sweep N for the certified-capacity
    number (CS-student script; also general CSV sweep automation).
-3. EE student: ZONE_TOLERANCE.md Phase 1 (unblocked — `--net-delay` exists).
-4. Offset/harmonic-aware sampling terms + limited carry-in (after 1–2).
-5. (Optional) plumb `in_local_platform` metrics (VR 1025/1028/1031/1034/1037) if
+3. EE student: ZONE_TOLERANCE.md Phase 1 (unblocked — `--net-delay` exists);
+   δ_max ±50% sensitivity for PNR (PREDICTOR.md §6.1).
+4. Honest-information predictor (estimated state + last-sent command via the
+   InfoSet pattern) — the N=14 honest-reactive collapse motivates it.
+5. Hybrid policy (ttu near deadlines, error-based otherwise) — see the
+   comfort trade at N=12 in PREDICTOR.md §5.
+6. Offset/harmonic-aware sampling terms + limited carry-in (after 1–2).
+7. (Optional) plumb `in_local_platform` metrics (VR 1025/1028/1031/1034/1037) if
    vehicle-side decisions are wanted; currently unread.
 
 ## Run / verify
