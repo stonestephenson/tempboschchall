@@ -34,6 +34,12 @@ struct PredictParams {
     // ~10x cheaper at a sub-millimeter effect on predicted e_y. 0 = exact
     // (used by --validate-predictor so the fidelity gate checks the true model).
     double velQuantum           = 0.01;
+    // Warm start for the TTPNR search: the previous answer aged to "now"
+    // (-1 = none). Memoization across refresh cycles: the boundary rarely
+    // moves more than a grid step in 10 ms, so bracketing around the hint
+    // typically needs 2-3 recovery rollouts instead of ~7-9. Every probe is
+    // re-verified against the current state — no stale results are trusted.
+    long   warmStartTtpnrTicks  = -1;
 };
 
 // Result of one held-command prediction, relative to `fromStep` (the first
@@ -46,6 +52,18 @@ struct Prediction {
     bool pastPnr     = false; // recovery already impossible (ttpnrTicks == 0)
     long strideTicks = 10;    // ticks between consecutive e_y samples
     std::vector<float> e_y;   // predicted error every strideTicks ticks
+
+    // Byproducts of the PNR search (only set when computePnr ran):
+    // Clearance of the rescue available NOW (the h=0 probe): min over the
+    // simulated recovery of (0.8 - |e_y|), in meters. Negative = the rescue
+    // fails, by that depth. 1e9 = not computed. Used by AdaptiveGuard to
+    // order vehicles tied at the same TTPNR (most fragile rescue first).
+    double rescueClearanceM = 1e9;
+    // The latest-possible successful rescue trajectory (from the TTPNR
+    // snapshot): e_y every strideTicks, starting rescueFromTick ticks after
+    // fromStep. Empty when past PNR (no successful rescue exists).
+    long rescueFromTick = -1;
+    std::vector<float> rescue_e_y;
 };
 
 // Per-profile default steering limit: max |act_out| over a clean N=1

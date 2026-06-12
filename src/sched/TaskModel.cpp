@@ -329,6 +329,19 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
     if (out.act_fin) {                       // command becomes the applied output
         actOutStamp_    = actInStamp_;
         actOutOldStamp_ = actInOldStamp_;
+        // Record the latch-time path age into the rotating window (the live
+        // round-trip estimate consumed by adaptive scheduling policies).
+        if (actOutOldStamp_ >= 0) {
+            if (step - latchAgeBucketStart_ >= kLatchAgeBucketTicks) {
+                // Rotate; if more than one bucket elapsed, the old data is stale.
+                latchAgePrev_ = (step - latchAgeBucketStart_ <
+                                 2 * kLatchAgeBucketTicks) ? latchAgeCur_ : -1;
+                latchAgeCur_ = -1;
+                latchAgeBucketStart_ = step - (step % kLatchAgeBucketTicks);
+            }
+            const long age = step - actOutOldStamp_;
+            if (age > latchAgeCur_) latchAgeCur_ = age;
+        }
     }
 
     // ---- Hold-time age sample: age of the CURRENTLY-APPLIED command, taken
@@ -342,6 +355,14 @@ void TaskChainModel::endTick(long step, VehicleTriggers& out) {
         const long age = step - actOutOldStamp_;
         if (age > maxAgeOldTicks_) maxAgeOldTicks_ = age;
     }
+}
+
+long TaskChainModel::recentLatchAgeTicks(long step) const {
+    // Window contents go stale if no latch has refreshed the buckets lately.
+    const long elapsed = step - latchAgeBucketStart_;
+    if (elapsed >= 2 * kLatchAgeBucketTicks) return -1;
+    if (elapsed >= kLatchAgeBucketTicks) return latchAgeCur_;
+    return std::max(latchAgeCur_, latchAgePrev_);
 }
 
 }  // namespace cps

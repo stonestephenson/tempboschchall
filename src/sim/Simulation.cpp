@@ -92,6 +92,14 @@ void Simulation::refreshPredictions(bool withPnr) {
     p.computePnr = withPnr;
     for (size_t v = 0; v < vehicles_.size(); ++v) {
         const VehicleOutputs& o = vehicles_[v].out;
+        // Warm-start the PNR search from the aged previous answer (skip when
+        // the previous answer was "relaxed" — the cheap cap-check handles it).
+        p.warmStartTtpnrTicks = -1;
+        if (withPnr && ttpnrBaseStep_[v] >= 0 &&
+            ttpnrTicks_[v] < predParams_.horizonTicks) {
+            p.warmStartTtpnrTicks =
+                std::max<long>(0, ttpnrTicks_[v] - (step_ - ttpnrBaseStep_[v]));
+        }
         predCache_[v] = predictHold(o.phys, o.act_out, step_ + 1, *traj_,
                                     offsets_[v], p);
         predBaseStep_[v] = step_;
@@ -126,12 +134,15 @@ void Simulation::buildViews() {
         const VehicleOutputs& o = vehicles_[v].out;
         long ttv, ttpnr;
         currentPredTicks(static_cast<int>(v), ttv, ttpnr);
+        const long recent = scheduler_->recentLatchAgeTicks(static_cast<int>(v), step_);
         views_[v] = VehicleView{static_cast<int>(v), vehicles_[v].curVel,
                                 o.e_y_real, o.e_y_est, o.rolling_real, o.rolling_remote,
                                 o.average_real, o.threshold_cntr_real,
                                 o.critical_real, o.violated_real,
                                 o.critical_remote, o.violated_remote,
-                                ttv * dt_ * 1000.0, ttpnr * dt_ * 1000.0};
+                                ttv * dt_ * 1000.0, ttpnr * dt_ * 1000.0,
+                                predCache_[v].rescueClearanceM,
+                                recent < 0 ? -1.0 : recent * dt_ * 1000.0};
     }
 }
 

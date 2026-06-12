@@ -31,9 +31,9 @@ using namespace cps;
 namespace {
 
 std::unique_ptr<CorePolicy> makePolicy(const std::string& name, bool triage,
-                                       double guardMs) {
+                                       double guardMs, double floorMs) {
     if (name == "edf")     return makeEdfPolicy();
-    if (name == "context" || name == "ctx" || name == "adaptive")
+    if (name == "context" || name == "ctx")
                            return makeContextAwarePolicy();  // oracle (reads *_real)
     if (name == "honest" || name == "context-honest")
                            return makeContextAwareHonestPolicy();
@@ -43,6 +43,8 @@ std::unique_ptr<CorePolicy> makePolicy(const std::string& name, bool triage,
                            return makeTimeToUnsafePolicy(triage);
     if (name == "hybrid" || name == "guarded")
                            return makeHybridPolicy(guardMs, triage);
+    if (name == "aguard" || name == "adaptive-guard")
+                           return makeAdaptiveGuardPolicy(floorMs, triage);
     return makeRateMonotonicPolicy();  // "rm" / default
 }
 
@@ -107,10 +109,11 @@ bool hasFlag(int argc, char** argv, const char* key) {
 void usage() {
     std::printf(
         "CPS Challenge Visualizer\n"
-        "  --scheduler rm|prm|edf|context|honest|ttu|hybrid   scheduling policy\n"
-        "                               (default rm; context = oracle, honest = remote\n"
-        "                               metrics only, ttu = predictive time-to-unsafe,\n"
-        "                               hybrid = TTPNR guard tier + comfort tier)\n"
+        "  --scheduler rm|prm|edf|context|honest|ttu|hybrid|aguard   scheduling\n"
+        "                               policy (default rm; context = oracle, honest =\n"
+        "                               remote metrics only, ttu = predictive\n"
+        "                               time-to-unsafe, hybrid = fixed TTPNR guard +\n"
+        "                               comfort tier, aguard = self-tuning guard)\n"
         "  --vehicles N                 number of vehicles (default 1)\n"
         "  --cores N                    shared cloud cores (default 3)\n"
         "  --profile 10|12.5|15         speed profile (default 10)\n"
@@ -126,6 +129,8 @@ void usage() {
         "                               instead of boosting them\n"
         "  --guard MS                   hybrid only: TTPNR threshold below which a car\n"
         "                               enters the emergency tier (default 150)\n"
+        "  --floor MS                   aguard only: target safety floor; the guard\n"
+        "                               self-tunes to floor + live round-trip (default 100)\n"
         "  --validate-predictor         predictor fidelity gate (see PREDICTOR.md)\n"
         "  --seed N                     RNG seed for pert mode (default 0)\n"
         "  --headless                   run without the GUI, print metrics\n"
@@ -177,6 +182,7 @@ int main(int argc, char** argv) {
         params.deltaMax      = std::atof(argValue(argc, argv, "--delta-max", "-1"));
         params.triage        = hasFlag(argc, argv, "--triage");
         const double guardMs = std::atof(argValue(argc, argv, "--guard", "150"));
+        const double floorMs = std::atof(argValue(argc, argv, "--floor", "100"));
         params.seed          = static_cast<uint64_t>(std::atoll(argValue(argc, argv, "--seed", "0")));
         const double durSec  = std::atof(argValue(argc, argv, "--duration", "0"));
         if (durSec > 0) params.durationSteps =
@@ -185,7 +191,7 @@ int main(int argc, char** argv) {
         const std::string schedName = argValue(argc, argv, "--scheduler", "rm");
         const std::string csvFile   = argValue(argc, argv, "--csv", "");
         auto scheduler = std::make_unique<PolicyScheduler>(
-            makePolicy(schedName, params.triage, guardMs));
+            makePolicy(schedName, params.triage, guardMs, floorMs));
 
         Simulation sim(params, std::move(scheduler));
 

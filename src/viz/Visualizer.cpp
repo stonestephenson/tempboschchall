@@ -252,6 +252,24 @@ void Visualizer::drawPrediction() {
                                    static_cast<size_t>(pred->ttpnrTicks / stride));
         DrawPoly(rl(worldAt(ip)), 4, 6.0f / gZoom, 45.0f, Color{255, 160, 40, 230});
     }
+
+    // The escape route: the latest-possible successful rescue trajectory,
+    // branching off at rescueFromTick (≈ the PNR diamond). Dashed cyan so it
+    // reads as "the alternative future the guard is protecting".
+    if (!pred->rescue_e_y.empty() && pred->rescueFromTick >= 0) {
+        auto rescueWorldAt = [&](size_t k) {
+            const long ref = static_cast<long>(f.refStep) + pred->rescueFromTick +
+                             static_cast<long>(k) * stride;
+            return traj_->pointAt(ref) +
+                   traj_->normalAt(ref) * (pred->rescue_e_y[k] * exag_);
+        };
+        const Color cRescue{90, 220, 220, 220};
+        for (size_t k = 0; k + 1 < pred->rescue_e_y.size(); ++k) {
+            if (k % 5 >= 3) continue;  // 3-on / 2-off dash, distinct cadence
+            DrawLineEx(rl(rescueWorldAt(k)), rl(rescueWorldAt(k + 1)),
+                       1.6f / gZoom, cRescue);
+        }
+    }
 }
 
 void Visualizer::drawTrack() {
@@ -366,6 +384,15 @@ void Visualizer::drawHud() {
                 const Color pc = f.ttpnr_ms < 100.0f ? Color{255, 160, 40, 255}
                                                      : Color{200, 200, 215, 255};
                 put(line, pc);
+            }
+            // Rescue clearance (live or recomputed in replay).
+            const Prediction* pr = currentPrediction();
+            if (pr && pr->rescueClearanceM < 1e8) {
+                std::snprintf(line, sizeof line, "rescue margin %.2f m%s",
+                              pr->rescueClearanceM,
+                              pr->rescueClearanceM < 0.0 ? "  (rescue fails)" : "");
+                put(line, pr->rescueClearanceM < 0.1 ? Color{255, 160, 40, 255}
+                                                     : Color{160, 220, 220, 255});
             }
         }
     } else {

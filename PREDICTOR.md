@@ -74,9 +74,9 @@ startup, never hand-assumed. "Recovered" = back inside the 0.2 m comfort band
 (after ≥ 50 ms) or never breaching for 1 s. TTPNR is found by binary search
 over 5 ms-spaced hold snapshots, which assumes recoverability is **monotone**
 in hold time — plausible but unproven. Consequences:
-- TTPNR is an *estimate* with ~5 ms grid resolution, refreshed every 50 ms
-  and aged in between (TTV/polyline refresh every 10 ms). The `min_pnr`
-  summary statistic therefore depends on these cadences.
+- TTPNR is an *estimate* with ~5 ms grid resolution, refreshed every 10 ms
+  (warm-started, §5c) and aged in between. The `min_pnr` summary statistic
+  depends on these cadences.
 - A better recovery policy (e.g., LQR-based, or true reachable-set
   computation) would move PNR later; the bang-bang heuristic is conservative
   in spirit but not provably an under- or over-approximation. Refining this
@@ -85,7 +85,7 @@ in hold time — plausible but unproven. Consequences:
 ## 4. Where the numbers flow
 
 ```
-Simulation (cache: TTV+polyline @10ms, PNR @50ms, aged between)
+Simulation (cache: TTV+polyline+PNR @10ms — warm-started, aged between)
   ├── VehicleView.ttv_ms / .ttpnr_ms  → policies (ttu ranks on them)
   ├── VehicleSummary.min_ttpnr_ms / .past_pnr_ticks → table + --csv
   ├── Frame.phys[6] / .ttv_ms / .ttpnr_ms (recording v4) → replay
@@ -186,16 +186,61 @@ Consequences worth quoting:
   An adaptive-θ policy (e.g., θ tracking the observed fleet-min margin or
   the live age measurement) is the natural next step — §6.
 
+*(2026-06-12 note: PNR now refreshes every 10 ms — warm-started searches,
+§5c — which improves the fixed hybrid too: at N=14, floor 35 → 75 ms and
+worst soft 36.1 → 31.0 %. The table above predates that change.)*
+
 Data: `predictive_sweep.csv` (hybrid rows appended),
 `hybrid_guard_sweep.csv` (N=14, rows grouped per guard in the order
 100/150/200/250/300/400 — the guard value is not a CSV column),
 `frontier_sweep.csv` (N=16).
 
+## 5c. AdaptiveGuard: the self-tuning guard (2026-06-12)
+
+`--scheduler aguard` (`AdaptiveGuard.cpp`, `--floor MS` default 100) closes
+the §5b loop online: **θ(t) = floor + A(t)**, A(t) = fleet-max *recent
+latch-time age* (a ~2 s windowed max of the age of data at each actuator
+latch — the live round-trip estimate, `VehicleView::age_recent_ms`), clamped
+to [floor+60, 450] so extreme overload degrades gracefully toward pure ttu.
+
+Two ideas from the cached-rescue discussion landed here in legitimate form:
+- **Warm-started TTPNR search** (memoization across refresh cycles,
+  `PredictParams::warmStartTtpnrTicks`): bracket around the aged previous
+  answer (~2–3 rollouts instead of ~7–9). Paid for PNR refresh at **10 ms**
+  (was 50) at unchanged wall speed (11× at 12 veh). Every probe re-verifies
+  against current state; nothing stale is trusted.
+- **Rescue clearance** (`Prediction::rescueClearanceM`, min 0.8−|e_y| over
+  the simulated rescue, free byproduct of the h=0 probe): tie-break in the
+  emergency tier — among cars at the same TTPNR grid point (including both
+  past it), the one whose best rescue grazes the wall goes first. This is
+  the cached rescue used as a *scheduling signal*; injecting it as a
+  *command* is impossible (the FMU owns all data; the scheduler controls
+  only time) and would exit the Challenge's rules.
+- The rescue trajectory itself is drawn in the visualizer (cyan dashes from
+  the PNR diamond) with a "rescue margin" HUD line.
+
+Results (worst exec, kill, 3 cores, 30 s; soft = worst per-vehicle share,
+floor = fleet-min TTPNR ms; all zero hard breaches unless noted):
+
+| N  | context           | ttu          | **aguard (floor=100)** |
+|----|-------------------|--------------|------------------------|
+| 10 | 12.0 / 235        | 15.1 / 235   | 12.0 / 245             |
+| 12 | 16.7 / 295        | 71.8 / 220   | 16.9 / 305             |
+| 14 | 30.9 / **0**      | 75.5 / 150   | **29.4 / 380**         |
+| 16 | 19 318 breaches   | 75.9 / 125   | **58.7 / 220**         |
+| 18 | 16 021 breaches ☠ | 77.4 / 120   | **54.1 / 220**         |
+
+**aguard matches context at light load (the guard never fires), dominates
+ttu on both axes at every load tested, and carries 18 vehicles — 50 % more
+than the best classic policy — on a single untouched default.** The
+two-cars-one-core stress scenario (N=2, 1 core, `--net-delay 60`) stays
+breach-free with a 180 ms floor. Data: `aguard_sweep.csv`.
+
 ## 6. Open items
 
-1. **Adaptive guard**: θ scaled online with load (track the live worst-case
-   age or the fleet-min margin) — §5b shows fixed θ must grow with N; the
-   adaptive version should dominate ttu at every load.
+1. ~~Adaptive guard~~ — done (§5c). Remaining refinement: per-vehicle θ_v
+   from each car's own round-trip, and a clearance-ablation study (count how
+   often the tie-break decides orderings).
 2. δ_max sensitivity sweep (±50 %) and the triage-vs-rescue figure (triage
    never engages at N≤14 under ttu/hybrid — needs higher load or
    `--net-delay` injection).

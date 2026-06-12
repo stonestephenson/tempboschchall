@@ -1,7 +1,7 @@
 # Session Handoff — CPS Challenge Visualizer
 
-Snapshot for a fresh agent to resume quickly. Last updated 2026-06-12
-(hybrid policy; design docs: BOUND.md, ZONE_TOLERANCE.md, PREDICTOR.md).
+Snapshot for a fresh agent to resume quickly. Last updated 2026-06-12 PM
+(adaptive guard; design docs: BOUND.md, ZONE_TOLERANCE.md, PREDICTOR.md).
 
 ## Goal and research plan
 Use this simulator to **empirically validate an analytical bound on end-to-end
@@ -146,6 +146,19 @@ refactored onto the same helpers, regression bit-identical). Results
 36% soft, 35 ms floor (context floor = 0); guard dial verified — floor ≈
 θ − round-trip(~100 ms ≈ measured age), θ=300 dominates ttu at N=14, θ=400
 survives & dominates ttu at N=16, θ=600 ≡ ttu exactly. Next policy: adaptive θ.
+
+## Done 2026-06-12 PM (adaptive guard — PREDICTOR.md §5c)
+`--scheduler aguard` (`--floor MS`, default 100): θ(t) = floor + live fleet
+round-trip (new `VehicleView.age_recent_ms` from TaskModel's windowed
+latch-age), clamp [floor+60, 450]. Warm-started TTPNR search → PNR refresh
+at 10 ms at unchanged wall speed; rescue clearance (h=0 probe byproduct)
+tie-breaks the emergency tier; rescue trajectory drawn in viz (cyan) +
+"rescue margin" HUD. Sweep: matches context at N≤12, dominates ttu on both
+axes at every N, **18 vehicles with zero hard breaches / 220 ms floor** on
+one default. The cached-rescue-as-command idea was assessed impossible
+(FMU owns data; scheduler owns time only) — see plan + PREDICTOR.md §5c.
+Legacy CLI alias `adaptive`→context removed. New 10 ms PNR cadence also
+improved fixed hybrid (N=14 floor 35→75, soft 36→31%).
 
 ## Open next-steps
 1. **Kurt review of BOUND.md** (Lemma 1 pairing, hold-term composition, §7.2

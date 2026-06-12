@@ -25,6 +25,7 @@ public:
     long missedJobs() const override;
     long maxDataAgeTicks(int vehicle) const override;
     long maxDataAgeOldestTicks(int vehicle) const override;
+    long recentLatchAgeTicks(int vehicle, long step) const override;
 
 private:
     std::unique_ptr<CorePolicy>  policy_;

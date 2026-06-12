@@ -49,6 +49,13 @@ struct VehicleView {
     // return. Larger = less urgent, so policies can rank on these directly.
     double ttv_ms          = 500.0;
     double ttpnr_ms        = 500.0;
+    // Clearance of the rescue available now: min (0.8 - |e_y|) over the
+    // simulated recovery, meters (negative = the rescue fails by that depth;
+    // 1e9 = not computed). AdaptiveGuard's tie-break among equal TTPNRs.
+    double rescue_clearance_m = 1e9;
+    // Recent latch-time command round-trip (ms, ~2 s window; -1 = none yet).
+    // Drives the adaptive guard threshold.
+    double age_recent_ms   = -1.0;
 };
 
 class Scheduler {
@@ -77,6 +84,9 @@ public:
     // the analytical bound targets).
     virtual long maxDataAgeTicks(int /*vehicle*/) const { return -1; }
     virtual long maxDataAgeOldestTicks(int /*vehicle*/) const { return -1; }
+    // Recent latch-time path age (~2 s window) — the live command round-trip
+    // estimate consumed by adaptive policies. -1 if untracked / no latch yet.
+    virtual long recentLatchAgeTicks(int /*vehicle*/, long /*step*/) const { return -1; }
 };
 
 }  // namespace cps

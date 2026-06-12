@@ -38,11 +38,11 @@ The executable is `build/cps`.
 ./build/cps --replay run.cpsr
 ```
 
-Key options: `--scheduler rm|prm|edf|context|honest|ttu|hybrid`, `--vehicles N`,
+Key options: `--scheduler rm|prm|edf|context|honest|ttu|hybrid|aguard`, `--vehicles N`,
 `--cores N`, `--profile 10|12.5|15`, `--duration SEC`,
 `--exec avg|worst|best|pert`, `--overrun kill|skip`, `--net-delay MS` (fix
 both network delays, for delay-tolerance sweeps), `--delta-max RAD` +
-`--triage` + `--guard MS` + `--validate-predictor` (prediction system, see
+`--triage` + `--guard MS` + `--floor MS` + `--validate-predictor` (prediction system, see
 PREDICTOR.md),
 `--seed N`, `--headless`, `--csv FILE` (append per-vehicle summary rows for
 sweeps), `--save FILE`, `--replay FILE`, `--screenshot FILE` with
@@ -53,7 +53,10 @@ Fixed-priority policies use the strict total order (period, vehicle, kind) —
 deterministic across platforms and exactly the model BOUND.md §7 analyzes.
 `ttu` is the predictive scheduler (ranks on time-to-point-of-no-return from
 held-command plant rollouts); `hybrid` wraps ttu's safety guard (`--guard MS`)
-around `context`'s comfort ranking — guard→0 is context, guard→∞ is ttu; the
+around `context`'s comfort ranking — guard→0 is context, guard→∞ is ttu;
+`aguard` self-tunes that guard from the live measured round-trip
+(`--floor MS` = target safety margin) and tie-breaks emergencies by rescue
+clearance; the
 visualizer shows the selected car's
 predicted path as a dotted line with 0.8 m-crossing and point-of-no-return
 markers, live and in replays (recording format v4).

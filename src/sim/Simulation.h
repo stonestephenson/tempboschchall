@@ -96,7 +96,9 @@ private:
     //     TTV + polyline refresh every 10 ms (cheap single rollout); the PNR
     //     binary search (the expensive part) every 50 ms; both age in between. ---
     static constexpr long kPredictRefreshTicks = 100;  // 10 ms, like the metrics
-    static constexpr long kPnrRefreshTicks     = 500;  // 50 ms
+    // PNR every 10 ms too: warm-started searches (PredictParams.
+    // warmStartTtpnrTicks) make this affordable; gate is >= 10x at 12 veh.
+    static constexpr long kPnrRefreshTicks     = 100;  // 10 ms
     void refreshPredictions(bool withPnr);
     // Aged (ttv, ttpnr) in ticks as of the current step_: cached values minus
     // elapsed ticks, clamped at 0; horizon sentinel passes through unchanged.

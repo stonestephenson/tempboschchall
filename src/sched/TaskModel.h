@@ -111,6 +111,12 @@ public:
     // the estimator's filter memory). Under FIFO delivery this equals the
     // S→E→B→M→A path age — the chain the analytical bound is proven for.
     long maxDataAgeOldestTicks() const { return maxAgeOldTicks_; }
+    // Recent command round-trip estimate: max LATCH-TIME path age over a
+    // ~2 s sliding window (two rotating buckets). Latch-time age — the age of
+    // the data the moment a fresh command is applied — is the realized
+    // sensor-to-actuation round-trip including scheduling delay, unlike the
+    // per-tick max above which also accrues hold time. -1 = no latch yet.
+    long recentLatchAgeTicks(long step) const;
 
     // State machine for a single periodic task (public so the tick-advance
     // helper in TaskModel.cpp can operate on it).
@@ -161,6 +167,12 @@ private:
     long actOutStamp_   = -1, actOutOldStamp_ = -1;  // applied command
     long maxAgeTicks_    = -1;  // worst-case age over run (freshest)
     long maxAgeOldTicks_ = -1;  // worst-case age over run (oldest-direct)
+
+    // Two-bucket rotating window for recentLatchAgeTicks (bucket = 1 s).
+    static constexpr long kLatchAgeBucketTicks = 10000;
+    long latchAgeBucketStart_ = 0;
+    long latchAgeCur_  = -1;  // max latch age in the current bucket
+    long latchAgePrev_ = -1;  // max latch age in the previous bucket
 
     Job& job(TaskKind k);
 };

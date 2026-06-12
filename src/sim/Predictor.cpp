@@ -244,32 +244,62 @@ double recoveryCommand(const double x[6], double deltaMax, double steerSign) {
 // Can the car still avoid |e_y| >= 0.8 if recovery steering starts from state
 // xStart at absolute trajectory step `stepAt`? Heuristic: latency ticks of
 // continued hold, then bang-bang recovery for up to recoveryWindowTicks.
+//
+// Optional byproducts (over the simulated portion, latency segment included):
+//   clearanceOut — min of (0.8 - |e_y|); negative = how deeply the rescue
+//     fails. trajOut/trajStride — e_y polyline of the rescue, capped at
+//     trajCapTicks (filled on success AND failure; callers keep what they
+//     need). Both cost nothing extra: the rollout runs anyway.
 bool recoverable(const double xStart[6], double heldCmd, long stepAt,
                  const Trajectory& traj, long trajOffset,
-                 const PredictParams& p, double deltaMax, double steerSign) {
+                 const PredictParams& p, double deltaMax, double steerSign,
+                 double* clearanceOut = nullptr,
+                 std::vector<float>* trajOut = nullptr, long trajStride = 10,
+                 long trajCapTicks = 6000) {
     Model model(p.velQuantum);
     const long c = model.strideTicks();
     double x[6];
     for (int i = 0; i < 6; ++i) x[i] = xStart[i];
 
+    double clearance = kHardBound - std::fabs(x[4]);
+    if (trajOut) {
+        trajOut->clear();
+        trajOut->push_back(static_cast<float>(x[4]));
+    }
+    auto note = [&](long kTotal) {
+        const double m = kHardBound - std::fabs(x[4]);
+        if (m < clearance) clearance = m;
+        if (trajOut && kTotal % trajStride == 0 && kTotal <= trajCapTicks)
+            trajOut->push_back(static_cast<float>(x[4]));
+    };
+    auto finish = [&](bool ok) {
+        if (clearanceOut) *clearanceOut = clearance;
+        return ok;
+    };
+
     long s = stepAt;
+    long kTotal = 0;
     for (long k = 0; k < p.recoveryLatencyTicks; k += c, s += c) {
         const Trajectory::Inputs in = traj.inputsAt(s + trajOffset);
         model.refresh(in.vel);
         model.step(x, heldCmd, in.ff0, in.ff1);
-        if (std::fabs(x[4]) >= kHardBound) return false;
+        kTotal += c;
+        note(kTotal);
+        if (std::fabs(x[4]) >= kHardBound) return finish(false);
     }
     for (long k = 0; k < p.recoveryWindowTicks; k += c, s += c) {
         const Trajectory::Inputs in = traj.inputsAt(s + trajOffset);
         model.refresh(in.vel);
         model.step(x, recoveryCommand(x, deltaMax, steerSign), in.ff0, in.ff1);
+        kTotal += c;
+        note(kTotal);
         const double absE = std::fabs(x[4]);
-        if (absE >= kHardBound) return false;
+        if (absE >= kHardBound) return finish(false);
         // Back inside the comfort band under full authority -> recovered.
         // (Bang-bang keeps e_y_dot oscillating, so don't require it small.)
-        if (k >= 500 && absE < kSoftBound) return true;
+        if (k >= 500 && absE < kSoftBound) return finish(true);
     }
-    return true;  // survived the whole window without breaching
+    return finish(true);  // survived the whole window without breaching
 }
 
 }  // namespace
@@ -343,11 +373,29 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
 
     // --- TTPNR: latest snapshot from which recovery still succeeds. Assumes
     //     recoverability is monotone in the hold time (heuristic; see
-    //     PREDICTOR.md), so binary search over the snapshot grid applies. ---
-    auto recoverableAt = [&](long snapIdx) {
-        return recoverable(&snaps[static_cast<size_t>(snapIdx) * 6], heldCmd,
-                           fromStep + snapIdx * snapStride, traj, trajOffset,
-                           params, deltaMax, kSteerSign);
+    //     PREDICTOR.md), so bracketing + binary search over the snapshot grid
+    //     applies. Every successful probe's rescue trajectory is captured;
+    //     thanks to the search invariant (lo = last true probe) the one we
+    //     end up holding belongs to the final answer. ---
+    std::vector<float> trajScratch, trajBest;
+    long bestFromIdx = -1;
+    constexpr long kRescueTrajCapTicks = 6000;  // keep <= 600 ms for the overlay
+    auto recoverableAt = [&](long snapIdx, double* clearanceOut) {
+        const bool ok = recoverable(&snaps[static_cast<size_t>(snapIdx) * 6], heldCmd,
+                                    fromStep + snapIdx * snapStride, traj, trajOffset,
+                                    params, deltaMax, kSteerSign, clearanceOut,
+                                    &trajScratch, vizStride, kRescueTrajCapTicks);
+        if (ok) {
+            trajBest.swap(trajScratch);
+            bestFromIdx = snapIdx;
+        }
+        return ok;
+    };
+    auto attachRescue = [&]() {
+        if (bestFromIdx >= 0) {
+            out.rescue_e_y = std::move(trajBest);
+            out.rescueFromTick = bestFromIdx * snapStride;
+        }
     };
 
     const long lastSnap = static_cast<long>(snaps.size() / 6) - 1;
@@ -356,24 +404,49 @@ Prediction predictHold(const double x0[6], double heldCmd, long fromStep,
     long hi = std::min(lastSnap, capTicks / snapStride);
     while (hi > 0 && hi * snapStride >= capTicks) --hi;
 
-    if (!recoverableAt(0)) {
+    // The h=0 probe always runs and defines the clearance of the rescue
+    // available NOW (the AdaptiveGuard tie-break signal).
+    if (!recoverableAt(0, &out.rescueClearanceM)) {
         out.ttpnrTicks = 0;
         out.pastPnr = true;
-        return out;
+        return out;  // no successful rescue: rescue_e_y stays empty
     }
-    if (recoverableAt(hi)) {
-        // Recoverable right up to the cap: if no violation was even found in
-        // the horizon, report "ttpnr >= horizon"; else the last grid point.
-        out.ttpnrTicks = (out.ttvTicks >= params.horizonTicks) ? params.horizonTicks
-                                                               : hi * snapStride;
-        return out;
+
+    // Warm start: bracket around the aged previous answer (memoization across
+    // refresh cycles). lo always holds a verified-true index.
+    long lo = 0;
+    long hiBound = -1;  // smallest verified-false index; -1 = none yet
+    if (params.warmStartTtpnrTicks >= 0 && hi >= 1) {
+        const long h = std::clamp(params.warmStartTtpnrTicks / snapStride,
+                                  static_cast<long>(1), hi);
+        if (recoverableAt(h, nullptr)) {
+            lo = h;
+            long gallop = 1;
+            while (lo < hi) {
+                const long probe = std::min(hi, lo + gallop);
+                if (recoverableAt(probe, nullptr)) { lo = probe; gallop *= 2; }
+                else { hiBound = probe; break; }
+            }
+        } else {
+            hiBound = h;  // boundary lies in [0, h)
+        }
     }
-    long lo = 0;  // invariant: recoverableAt(lo) && !recoverableAt(hi)
-    while (hi - lo > 1) {
-        const long mid = lo + (hi - lo) / 2;
-        if (recoverableAt(mid)) lo = mid; else hi = mid;
+    if (hiBound < 0) {
+        // No false bound known: recoverable up to the cap?
+        if (lo >= hi || recoverableAt(hi, nullptr)) {
+            out.ttpnrTicks = (out.ttvTicks >= params.horizonTicks)
+                                 ? params.horizonTicks : hi * snapStride;
+            attachRescue();
+            return out;
+        }
+        hiBound = hi;
+    }
+    while (hiBound - lo > 1) {  // invariant: lo true, hiBound false
+        const long mid = lo + (hiBound - lo) / 2;
+        if (recoverableAt(mid, nullptr)) lo = mid; else hiBound = mid;
     }
     out.ttpnrTicks = lo * snapStride;
+    attachRescue();
     return out;
 }
 

@@ -62,4 +62,9 @@ std::unique_ptr<CorePolicy> makeTimeToUnsafePolicy(bool triage);
 // shared comfort score (ContextAware's rule). See Hybrid.cpp / PREDICTOR.md.
 std::unique_ptr<CorePolicy> makeHybridPolicy(double guardMs, bool triage);
 
+// Hybrid with a self-tuning guard: theta(t) = floorMs + live fleet round-trip
+// estimate (clamped), plus rescue-clearance tie-breaking in the emergency
+// tier. See AdaptiveGuard.cpp / PREDICTOR.md §5c.
+std::unique_ptr<CorePolicy> makeAdaptiveGuardPolicy(double floorMs, bool triage);
+
 }  // namespace cps
