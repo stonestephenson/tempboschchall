@@ -1,7 +1,7 @@
 # Session Handoff — CPS Challenge Visualizer
 
-Snapshot for a fresh agent to resume quickly. Last updated 2026-06-10 (PM —
-research-kickoff session; see also BOUND.md and ZONE_TOLERANCE.md, new).
+Snapshot for a fresh agent to resume quickly. Last updated 2026-06-12
+(hybrid policy; design docs: BOUND.md, ZONE_TOLERANCE.md, PREDICTOR.md).
 
 ## Goal and research plan
 Use this simulator to **empirically validate an analytical bound on end-to-end
