@@ -137,6 +137,16 @@ scheduler on margin at equal information. Calibrated steering limits
 (×1.5 of observed max |act_out|): 0.285/0.534/0.419 rad per profile.
 Prediction overhead +17% at 12 veh. Sweep: `predictive_sweep.csv`.
 
+## Done 2026-06-12 (hybrid policy)
+`--scheduler hybrid` (`Hybrid.cpp`): two-tier guarded triage — TTPNR < `--guard`
+(default 150 ms) = emergency tier under ttu's rule; remaining capacity by the
+shared comfort score (`comfortUrgencyOracle` in Policies.h; ContextAware
+refactored onto the same helpers, regression bit-identical). Results
+(PREDICTOR.md §5b): ≡ context at N≤12 (guard never fires); N=14: 0 breaches,
+36% soft, 35 ms floor (context floor = 0); guard dial verified — floor ≈
+θ − round-trip(~100 ms ≈ measured age), θ=300 dominates ttu at N=14, θ=400
+survives & dominates ttu at N=16, θ=600 ≡ ttu exactly. Next policy: adaptive θ.
+
 ## Open next-steps
 1. **Kurt review of BOUND.md** (Lemma 1 pairing, hold-term composition, §7.2
    workload bound for the discrete model) **+ PREDICTOR.md §3** (recovery
@@ -147,8 +157,7 @@ Prediction overhead +17% at 12 veh. Sweep: `predictive_sweep.csv`.
    δ_max ±50% sensitivity for PNR (PREDICTOR.md §6.1).
 4. Honest-information predictor (estimated state + last-sent command via the
    InfoSet pattern) — the N=14 honest-reactive collapse motivates it.
-5. Hybrid policy (ttu near deadlines, error-based otherwise) — see the
-   comfort trade at N=12 in PREDICTOR.md §5.
+5. **Adaptive guard** for hybrid (θ scaled with load/live age; PREDICTOR.md §6.1).
 6. Offset/harmonic-aware sampling terms + limited carry-in (after 1–2).
 7. (Optional) plumb `in_local_platform` metrics (VR 1025/1028/1031/1034/1037) if
    vehicle-side decisions are wanted; currently unread.

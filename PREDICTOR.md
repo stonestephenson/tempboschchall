@@ -97,6 +97,13 @@ Simulation (cache: TTV+polyline @10ms, PNR @50ms, aged between)
   cars clamp to maximum urgency by default — the real plant's steering is
   unbounded, so the controller may still save them; **`--triage`** inverts
   this (drop them to the bottom) for the rescue-vs-triage experiment.
+- **`--scheduler hybrid`** (`Hybrid.cpp`): two-tier *guarded triage*.
+  Vehicles with TTPNR below the guard `--guard MS` (default 150) form an
+  emergency tier scheduled by ttu's rule; all remaining capacity goes to the
+  comfort tier ranked by the shared comfort score (identical to `context`'s
+  oracle rule by construction — `comfortUrgencyOracle` in `Policies.h`).
+  Limits: guard → 0 ⇒ exactly `context`; guard ≥ horizon ⇒ exactly `ttu`
+  (verified empirically, §5b). `--triage` applies as in ttu.
 - **Visualizer**: for the selected car, a dotted predicted-e_y line ahead of
   it (same ×exaggeration as everything else), a red ring at the predicted
   0.8 m crossing, an orange diamond at the PNR point, and a HUD line
@@ -139,16 +146,66 @@ Prediction overhead: +17 % wall time at 12 vehicles (13× → 11× real time;
 the plan's "≥20× at 12 veh" gate was mis-calibrated against the 6-vehicle
 baseline — the no-predictor floor at 12 vehicles is already 13×).
 
+## 5b. The hybrid: guarded triage (2026-06-12)
+
+`hybrid` wraps ttu's safety guard around context's comfort optimization
+(§4). Results (worst exec, kill, 3 cores, 30 s; "soft" = worst per-vehicle
+soft-violation share, "floor" = fleet-min TTPNR in ms):
+
+| N  | context        | ttu            | **hybrid (θ=150)** |
+|----|----------------|----------------|--------------------|
+| 12 | 16.7 % / 295   | 71.8 % / 220   | **16.7 % / 295** (≡ context: guard never fires) |
+| 14 | 30.9 % / **0** | 75.5 % / 150   | **36.1 % / 35**    |
+
+All cells are zero hard breaches. At light load the hybrid IS context,
+bit-for-bit; at N=14 it keeps a positive safety floor for ~5 points of
+comfort, where context reaches the brink (floor 0).
+
+**The guard is a real dial** (N=14 sensitivity; floor rises ≈ 1:1 with θ):
+
+| θ (ms)   | 100 | 150 | 200 | 250 | 300 | 400 |
+|----------|-----|-----|-----|-----|-----|-----|
+| worst soft | 32.9 | 36.1 | 42.8 | 33.7 | 33.7 | 35.4 |
+| floor      | 0   | 35  | 110 | 120 | 205 | 295 |
+
+The θ−floor gap is ≈ 100 ms ≈ the measured worst-case command round-trip
+(data age): **achieved floor ≈ θ − round-trip**, because after the guard
+fires, the rescue command still needs one chain traversal to take effect.
+This is the empirical composition with BOUND.md: set θ ≥ desired floor +
+(the age bound) and the floor is guaranteed-by-construction in spirit —
+formalizing exactly that implication is the Route B theory hook.
+
+Consequences worth quoting:
+- **θ=300 dominates ttu at N=14** on both axes (33.7 % vs 75.5 % soft,
+  205 vs 150 floor).
+- **N=16 frontier**: θ=150 breaks (2416 hard) and context collapses
+  (19 318); ttu survives (76.1 % / 145). **θ=400 also survives N=16 and
+  dominates ttu there too (62 % / 235)**; θ=600 reproduces ttu's numbers
+  exactly — the θ→∞ limit confirmed.
+- So the guard should *scale with load* (round-trip grows with contention).
+  An adaptive-θ policy (e.g., θ tracking the observed fleet-min margin or
+  the live age measurement) is the natural next step — §6.
+
+Data: `predictive_sweep.csv` (hybrid rows appended),
+`hybrid_guard_sweep.csv` (N=14, rows grouped per guard in the order
+100/150/200/250/300/400 — the guard value is not a CSV column),
+`frontier_sweep.csv` (N=16).
+
 ## 6. Open items
 
-1. δ_max sensitivity sweep (±50 %) and the triage-vs-rescue figure.
-2. Recovery-policy refinement / monotonicity assumption (EE + Kurt).
-3. Honest-information variant: predict from estimated state + last-sent
+1. **Adaptive guard**: θ scaled online with load (track the live worst-case
+   age or the fleet-min margin) — §5b shows fixed θ must grow with N; the
+   adaptive version should dominate ttu at every load.
+2. δ_max sensitivity sweep (±50 %) and the triage-vs-rescue figure (triage
+   never engages at N≤14 under ttu/hybrid — needs higher load or
+   `--net-delay` injection).
+3. Recovery-policy refinement / monotonicity assumption (EE + Kurt).
+4. Honest-information variant: predict from estimated state + last-sent
    command via the InfoSet pattern (`ContextAware.cpp`) — phase 2.
-4. Relation to BOUND.md: TTV/TTPNR are *forecasts* under a frozen command;
-   the data-age bound constrains how stale that command can *get*. The
-   composition (bound on age ⇒ bound on prediction error ⇒ guaranteed
-   reaction window) is the Route B theory hook.
-5. Differentiate from Wilson et al. (MEMOCODE'24): their lookahead checks
+5. Formalize the §5b composition with BOUND.md: bounded age ⇒ bounded
+   guard-to-actuation lag ⇒ guaranteed floor (θ − bound). This is the Route
+   B theorem shape: *a scheduler parameter with a physically provable
+   safety-margin guarantee*.
+6. Differentiate from Wilson et al. (MEMOCODE'24): their lookahead checks
    crash-vs-no-crash for one vehicle offline/at-verification-time; TTV/TTPNR
    are continuous online quantities driving multi-vehicle arbitration.

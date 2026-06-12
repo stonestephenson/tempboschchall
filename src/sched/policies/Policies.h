@@ -7,11 +7,29 @@
 // pass it to PolicyScheduler.
 #pragma once
 
+#include <cmath>
 #include <memory>
 
 #include "sched/CorePolicy.h"
 
 namespace cps {
+
+// Shared comfort-urgency score ("how badly does this vehicle need compute
+// right now"), defined once so every policy that ranks on it (ContextAware,
+// Hybrid) provably uses the identical rule — A/B comparisons then isolate
+// the policy mechanism, never an accidentally divergent score.
+inline double comfortUrgencyOracle(const VehicleView& v) {
+    return 3.0 * std::fabs(v.e_y_real)      // distance from the path
+         + 1.0 * v.rolling_real             // recent quadratic cost
+         + (v.critical ? 0.5 : 0.0)         // mid-maneuver
+         + (v.violated_real ? 1.0 : 0.0);   // currently over the soft bound
+}
+inline double comfortUrgencyRemote(const VehicleView& v) {
+    return 3.0 * std::fabs(v.e_y_est)
+         + 1.0 * v.rolling_remote
+         + (v.critical_remote ? 0.5 : 0.0)
+         + (v.violated_remote ? 1.0 : 0.0);
+}
 
 // Classic rate-monotonic priority (shorter period = higher priority).
 // Use as the Challenge Q1 (non-context-aware) baseline.
@@ -38,5 +56,10 @@ std::unique_ptr<CorePolicy> makeContextAwareHonestPolicy();  // honest
 // derived dynamic deadline (PREDICTOR.md). `triage` drops past-PNR cars to
 // the bottom instead of boosting them.
 std::unique_ptr<CorePolicy> makeTimeToUnsafePolicy(bool triage);
+
+// Two-tier guarded triage: vehicles with TTPNR below `guardMs` get cores
+// unconditionally (TimeToUnsafe's rule); remaining capacity is ranked by the
+// shared comfort score (ContextAware's rule). See Hybrid.cpp / PREDICTOR.md.
+std::unique_ptr<CorePolicy> makeHybridPolicy(double guardMs, bool triage);
 
 }  // namespace cps

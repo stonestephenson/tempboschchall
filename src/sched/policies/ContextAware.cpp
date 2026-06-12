@@ -33,16 +33,10 @@ public:
         auto urgency = [&](const ReadyJob& j) -> double {
             if (j.vehicle < 0 || j.vehicle >= static_cast<int>(ctx.size())) return 0.0;
             const VehicleView& v = ctx[j.vehicle];
-            const bool oracle = info_ == InfoSet::Oracle;
-            const double e_y     = oracle ? v.e_y_real      : v.e_y_est;
-            const double rolling = oracle ? v.rolling_real  : v.rolling_remote;
-            const bool   crit    = oracle ? v.critical      : v.critical_remote;
-            const bool   viol    = oracle ? v.violated_real : v.violated_remote;
-            // Weighted "how badly does this vehicle need compute right now".
-            return 3.0 * std::fabs(e_y)     // distance from the path
-                 + 1.0 * rolling            // recent quadratic cost
-                 + (crit ? 0.5 : 0.0)       // mid-maneuver
-                 + (viol ? 1.0 : 0.0);      // currently over the soft bound
+            // Shared scoring rule (Policies.h) so Hybrid ranks comfort
+            // identically and A/Bs isolate the mechanism.
+            return info_ == InfoSet::Oracle ? comfortUrgencyOracle(v)
+                                            : comfortUrgencyRemote(v);
         };
 
         order_.resize(ready.size());
